@@ -54,9 +54,11 @@ A run clears when you have completed one task on each desk:
 | Buy a stock | Markets |
 | Sell a stock | Markets |
 
-While a run is live a notch hangs from the top centre of the screen — a dark island with
+While a run is live a notch sits centred in the navigation bar — a dark island with
 concave shoulders, a lens dot, the elapsed clock and the objective counter — and each
-objective raises a toast as it clears. The lens lights green when the run closes. When the last one clears the clock freezes and a result card reports the **time
+objective raises a toast as it clears. The lens lights green when the run closes. Below
+1200px, where the header can no longer hold everything on one line, the notch takes the
+top row on its own. When the last one clears the clock freezes and a result card reports the **time
 taken**, **total spent**, **total earned**, **final net worth** and **net result** — the
 numbers you would rank runs by.
 
@@ -130,20 +132,25 @@ chart, and flat colour flashes on ticking quotes. All of it collapses under
 `prefers-reduced-motion`.
 
 ### Listing photography
-Stay listings use hotel-room photographs from [Unsplash](https://unsplash.com/s/photos/hotel-rooms),
-served straight from the Unsplash image CDN — no API key and no SDK, just URLs. The
-Unsplash License allows free use, including commercially, without attribution. The photo
-ids live in one file, `src/data/stayPhotos.ts`, and are assigned to properties
-deterministically by seed, so a listing always shows the same room.
+Stay listings use real photographs, resolved through an ordered list of sources in
+`src/data/stayPhotos.ts`. Neither default source needs an API key **or a per-photo id** —
+the URL itself asks for a photo, so there is nothing that can go stale or 404:
+
+1. **LoremFlickr** — Flickr photos tagged `hotel,room,interior`, pinned per listing with
+   `lock` so a property always shows the same room.
+2. **Lorem Picsum** — Unsplash photography, seeded per listing. The safety net.
+
+To pin specific Unsplash photographs instead, paste their ids into `UNSPLASH_IDS` and they
+are tried first. Verify anything you add:
 
 ```bash
-npm run check:photos   # HEADs every id and prints any that no longer resolve
+npm run check:photos   # reports which sources actually respond
 ```
 
-Every image degrades to generated artwork rather than leaving a hole: the seeded
-illustration renders underneath as the loading state, the photograph fades over it once
-decoded, and a failed load (offline, blocked CDN, retired id) simply keeps the
-illustration. Card and gallery dimensions are identical either way.
+Every image degrades rather than breaking: the seeded illustration renders underneath as
+the loading state, a photograph fades over it once decoded, and each failure moves to the
+next source — the illustration simply stays if none succeed. Card and gallery dimensions
+are identical either way.
 
 ### Generated artwork
 Both fallback sets are inline SVG — nothing is fetched:

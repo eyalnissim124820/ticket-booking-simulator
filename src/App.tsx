@@ -181,26 +181,30 @@ function Shell() {
   }
 
   return (
-    <div className={cx('app', state.session.status !== 'idle' && 'has-notch')}>
-      <SessionNotch />
+    <div className="app">
       <header className="topbar">
-        <div className="brand">
-          <BrandMark />
-          <div>
-            <span className="brand-name">{t('app.name')}</span>
-            <span className="brand-sub">{t('app.tagline')}</span>
+        {/* Left and right groups both flex, which keeps the notch centred in the bar. */}
+        <div className="topbar-left">
+          <div className="brand">
+            <BrandMark />
+            <div>
+              <span className="brand-name">{t('app.name')}</span>
+              <span className="brand-sub">{t('app.tagline')}</span>
+            </div>
           </div>
+
+          <nav className="tabs" role="tablist" aria-label={t('app.name')}>
+            {TABS.map(({ id, key, Icon }) => (
+              <button key={id} className="tab" role="tab" aria-selected={tab === id} onClick={() => setTab(id)}>
+                <Icon size={16} />
+                {t(key)}
+                {counts[id] > 0 && <span className="badge">{counts[id]}</span>}
+              </button>
+            ))}
+          </nav>
         </div>
 
-        <nav className="tabs" role="tablist" aria-label={t('app.name')}>
-          {TABS.map(({ id, key, Icon }) => (
-            <button key={id} className="tab" role="tab" aria-selected={tab === id} onClick={() => setTab(id)}>
-              <Icon size={16} />
-              {t(key)}
-              {counts[id] > 0 && <span className="badge">{counts[id]}</span>}
-            </button>
-          ))}
-        </nav>
+        <SessionNotch />
 
         <div className="topbar-right">
           <LanguageToggle />

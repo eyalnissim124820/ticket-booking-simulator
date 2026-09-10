@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
-import { stayPhotoUrl } from '../../data/stayPhotos'
+import { stayPhotoSources } from '../../data/stayPhotos'
 import { PropertyArt } from './PropertyArt'
 
 /**
  * A listing photograph, with the generated illustration as a standby.
  *
- * The photos are remote, so any of them can fail — offline, a blocked CDN, a
- * retired id. Rather than leave a hole in the grid, a failed load falls back to
- * the same seeded artwork the app used before, which always renders.
+ * Photos come from the network, so any single source can fail — offline, a
+ * blocked CDN, a service having a bad day. Rather than leave a hole in the grid
+ * this walks the candidate sources in order and, if all of them fail, keeps the
+ * seeded illustration, which always renders.
  */
 export function StayImage({
   seed,
@@ -22,21 +23,25 @@ export function StayImage({
   alt?: string
   eager?: boolean
 }) {
-  const [failed, setFailed] = useState(false)
+  const sources = stayPhotoSources(seed, variant, width)
+  const [attempt, setAttempt] = useState(0)
   const [loaded, setLoaded] = useState(false)
-  const src = stayPhotoUrl(seed, variant, width)
+  const key = `${seed}-${variant}-${width}`
 
-  // A new listing means a new photo: clear the previous outcome.
+  // A different listing starts the chain over.
   useEffect(() => {
-    setFailed(false)
+    setAttempt(0)
     setLoaded(false)
-  }, [src])
+  }, [key])
 
-  if (failed) return <PropertyArt seed={seed} variant={variant} />
+  const src = sources[attempt]
+  const exhausted = attempt >= sources.length
+
+  if (exhausted) return <PropertyArt seed={seed} variant={variant} />
 
   return (
     <>
-      {/* The artwork sits underneath as the loading state, so the card is never blank. */}
+      {/* The artwork sits underneath as the loading state, so nothing is ever blank. */}
       {!loaded && <PropertyArt seed={seed} variant={variant} />}
       <img
         className="stay-img"
@@ -48,7 +53,7 @@ export function StayImage({
         decoding="async"
         data-loaded={loaded || undefined}
         onLoad={() => setLoaded(true)}
-        onError={() => setFailed(true)}
+        onError={() => setAttempt((n) => n + 1)}
       />
     </>
   )
