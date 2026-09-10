@@ -1,35 +1,39 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
-  AMENITIES,
-  AMENITY_BY_ID,
+  AMENITY_IDS,
   DESTINATIONS,
   DESTINATION_BY_ID,
-  PROPERTY_INDEX,
   PROPERTY_TYPE_OPTIONS,
-  propertiesFor,
-  propertyTypeLabel,
+  amenityKey,
+  cachedPropertiesFor,
+  findProperty,
+  pairText,
+  propertyTypeKey,
   searchDestinations,
   type Property,
   type PropertyType,
   type RoomOption,
-  type StayDestination,
 } from '../../data/hotels'
+import { destinationCity, destinationCountry, type Destination } from '../../data/destinations'
 import { useStore } from '../../state/store'
-import { Autocomplete, Counter, Empty, Modal, Stars } from '../../components/ui'
+import {
+  Autocomplete,
+  Counter,
+  DateField,
+  Empty,
+  Modal,
+  Select,
+  SkeletonStayCard,
+  Stars,
+} from '../../components/ui'
+import { AMENITY_ICONS, IconBed, IconHeart, IconSearch } from '../../components/icons'
 import { PropertyDetail } from './PropertyDetail'
 import { StayBookingFlow } from './StayBookingFlow'
-import { propertyGradient, propertyIcon } from './PropertyArt'
-import { addDays, cx, mediumDate, money, nightsBetween, shortDate, todayIso } from '../../lib/format'
+import { PropertyArt } from './PropertyArt'
+import { addDays, cx, nightsBetween, todayIso } from '../../lib/format'
+import { useI18n } from '../../i18n'
 
 type Sort = 'recommended' | 'price-asc' | 'price-desc' | 'rating' | 'distance'
-
-const SORTS: { id: Sort; label: string }[] = [
-  { id: 'recommended', label: 'Recommended' },
-  { id: 'price-asc', label: 'Price: low to high' },
-  { id: 'price-desc', label: 'Price: high to low' },
-  { id: 'rating', label: 'Guest rating' },
-  { id: 'distance', label: 'Distance to centre' },
-]
 
 interface StaySearch {
   destinationId: string
@@ -54,62 +58,62 @@ function PropertyCard({
   onOpen: () => void
   onToggleSave: () => void
 }) {
+  const { t, locale, money, plural } = useI18n()
   const cheapest = property.rooms.reduce((a, b) => (a.rate <= b.rate ? a : b))
   const total = cheapest.rate * nights * rooms
+
   return (
     <article className="card stay-card" onClick={onOpen}>
-      <div className="stay-photo" style={{ background: propertyGradient(property.hue) }}>
-        {propertyIcon(property.hue)}
+      <div className="stay-photo">
+        <PropertyArt seed={property.artSeed} />
         <button
           className="save"
-          aria-label={saved ? 'Remove from saved' : 'Save property'}
+          aria-label={saved ? t('stays.unsavedToast') : t('common.save')}
           onClick={(e) => {
             e.stopPropagation()
             onToggleSave()
           }}
         >
-          {saved ? '♥' : '♡'}
+          <IconHeart size={16} filled={saved} />
         </button>
         {property.freeCancellation && (
-          <span className="pill pill-accent" style={{ position: 'absolute', left: 10, bottom: 10 }}>
-            Free cancellation
-          </span>
+          <span className="pill corner-tag">{t('stays.freeCancellation')}</span>
         )}
       </div>
       <div className="stay-body">
         <div className="row-between" style={{ alignItems: 'flex-start' }}>
           <div className="grow">
-            <strong style={{ fontSize: 14.5 }}>{property.name}</strong>
-            <div>
-              <Stars count={property.stars} />
-            </div>
+            <strong style={{ fontSize: 15 }}>{pairText(property.name, locale)}</strong>
+            <div><Stars count={property.stars} /></div>
           </div>
           <span className={cx('score', property.rating < 8 && 'mid', property.rating < 7 && 'low')}>
             {property.rating.toFixed(1)}
           </span>
         </div>
-        <div className="faint" style={{ fontSize: 12 }}>
-          {propertyTypeLabel(property.type)} · {property.neighbourhood} ·{' '}
-          {property.distanceToCentreKm} km from centre
+        <div className="faint" style={{ fontSize: 12.5 }}>
+          {t(propertyTypeKey(property.type))} · {pairText(property.neighbourhood, locale)} ·{' '}
+          {t('stays.fromCentre', { km: property.distanceToCentreKm })}
         </div>
         <div className="amenity-row">
-          {property.amenities.slice(0, 3).map((id) => (
-            <span key={id} className="pill">
-              {AMENITY_BY_ID.get(id)?.icon} {AMENITY_BY_ID.get(id)?.label}
-            </span>
-          ))}
-          {property.amenities.length > 3 && (
-            <span className="pill">+{property.amenities.length - 3}</span>
-          )}
+          {property.amenities.slice(0, 3).map((id) => {
+            const Icon = AMENITY_ICONS[id]
+            return (
+              <span key={id} className="pill">
+                {Icon && <Icon size={13} />}
+                {t(amenityKey(id))}
+              </span>
+            )
+          })}
+          {property.amenities.length > 3 && <span className="pill">+{property.amenities.length - 3}</span>}
         </div>
         <div className="row-between" style={{ marginTop: 'auto', paddingTop: 8 }}>
           <span className="faint" style={{ fontSize: 12 }}>
-            {property.reviewCount.toLocaleString()} reviews
+            {t('stays.reviewsCount', { count: property.reviewCount.toLocaleString() })}
           </span>
-          <div style={{ textAlign: 'right' }}>
-            <div className="mono" style={{ fontSize: 18, fontWeight: 650 }}>{money(total)}</div>
+          <div style={{ textAlign: 'end' }}>
+            <div className="mono" style={{ fontSize: 18 }}>{money(total)}</div>
             <div className="faint" style={{ fontSize: 11 }}>
-              {nights} night{nights > 1 ? 's' : ''} · {money(cheapest.rate)}/night
+              {plural.nights(nights)} · {money(cheapest.rate)}/{t('common.perNight')}
             </div>
           </div>
         </div>
@@ -119,10 +123,11 @@ function PropertyCard({
 }
 
 export function StaysTab() {
+  const { t, locale, money, formatDate, plural, arrow } = useI18n()
   const { state, dispatch, notify } = useStore()
 
   const [search, setSearch] = useState<StaySearch>({
-    destinationId: 'lisbon',
+    destinationId: 'lisbon-portugal',
     checkIn: addDays(todayIso(), 21),
     checkOut: addDays(todayIso(), 25),
     guests: 2,
@@ -130,6 +135,7 @@ export function StaysTab() {
   })
   const [query, setQuery] = useState('')
   const [submitted, setSubmitted] = useState<StaySearch | null>(null)
+  const [loading, setLoading] = useState(false)
   const [sort, setSort] = useState<Sort>('recommended')
   const [maxPrice, setMaxPrice] = useState<number | null>(null)
   const [minRating, setMinRating] = useState(0)
@@ -140,17 +146,20 @@ export function StaysTab() {
   const [booking, setBooking] = useState<{ property: Property; room: RoomOption } | null>(null)
   const [reservationsOpen, setReservationsOpen] = useState(false)
 
+  useEffect(() => {
+    if (!submitted) return
+    setLoading(true)
+    const id = window.setTimeout(() => setLoading(false), 750)
+    return () => window.clearTimeout(id)
+  }, [submitted])
+
   const nights = nightsBetween(search.checkIn, search.checkOut)
   const submittedNights = submitted ? nightsBetween(submitted.checkIn, submitted.checkOut) : 0
+  const destination = DESTINATION_BY_ID.get(search.destinationId) ?? DESTINATIONS[0]
+  const submittedDestination = submitted ? DESTINATION_BY_ID.get(submitted.destinationId) : undefined
 
-  const all = useMemo(
-    () => (submitted ? propertiesFor(submitted.destinationId) : []),
-    [submitted],
-  )
-  const priceCeiling = useMemo(
-    () => (all.length ? Math.max(...all.map((p) => p.nightlyRate)) : 0),
-    [all],
-  )
+  const all = useMemo(() => (submitted ? cachedPropertiesFor(submitted.destinationId) : []), [submitted])
+  const priceCeiling = useMemo(() => (all.length ? Math.max(...all.map((p) => p.nightlyRate)) : 0), [all])
 
   const visible = useMemo(() => {
     const filtered = all.filter((p) => {
@@ -160,31 +169,25 @@ export function StaysTab() {
       if (onlyFreeCancellation && !p.freeCancellation) return false
       return requiredAmenities.every((a) => p.amenities.includes(a))
     })
-    const sorted = [...filtered]
-    sorted.sort((a, b) => {
+    return [...filtered].sort((a, b) => {
       switch (sort) {
-        case 'price-asc':
-          return a.nightlyRate - b.nightlyRate
-        case 'price-desc':
-          return b.nightlyRate - a.nightlyRate
-        case 'rating':
-          return b.rating - a.rating
-        case 'distance':
-          return a.distanceToCentreKm - b.distanceToCentreKm
+        case 'price-asc': return a.nightlyRate - b.nightlyRate
+        case 'price-desc': return b.nightlyRate - a.nightlyRate
+        case 'rating': return b.rating - a.rating
+        case 'distance': return a.distanceToCentreKm - b.distanceToCentreKm
         default:
           // Recommended blends rating against price so good value floats up.
           return b.rating * 100 - b.nightlyRate * 0.35 - (a.rating * 100 - a.nightlyRate * 0.35)
       }
     })
-    return sorted
   }, [all, maxPrice, minRating, types, requiredAmenities, onlyFreeCancellation, sort])
 
-  const runSearch = () => {
+  const runSearch = (destinationId = search.destinationId) => {
     if (nights < 1) {
-      notify({ tone: 'error', title: 'Check-out must be after check-in' })
+      notify({ tone: 'error', title: t('stays.badDates') })
       return
     }
-    setSubmitted({ ...search })
+    setSubmitted({ ...search, destinationId })
     setMaxPrice(null)
     setMinRating(0)
     setTypes([])
@@ -192,126 +195,92 @@ export function StaysTab() {
     setOnlyFreeCancellation(false)
   }
 
-  const destination = DESTINATION_BY_ID.get(search.destinationId) ?? DESTINATIONS[0]
   const activeReservations = state.stayBookings.filter((b) => b.status === 'confirmed')
 
   return (
-    <div>
+    <div className="page-enter">
       <section className="search-bar">
-        <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-          <span className="pill pill-accent">🛏️ Stays</span>
+        <div className="row" style={{ gap: 10, flexWrap: 'wrap' }}>
+          <span className="pill pill-brand"><IconBed size={13} />{t('stays.title')}</span>
           <span className="faint" style={{ fontSize: 12.5 }}>
-            {DESTINATIONS.length} destinations · simulated inventory
+            {t('stays.destinationCount', { count: DESTINATIONS.length })}
           </span>
-          <div style={{ marginLeft: 'auto' }} className="row">
-            <button className="btn btn-sm" onClick={() => setReservationsOpen(true)}>
-              🛎️ My reservations {activeReservations.length > 0 && `(${activeReservations.length})`}
-            </button>
-          </div>
+          <button className="btn btn-sm" style={{ marginInlineStart: 'auto' }} onClick={() => setReservationsOpen(true)}>
+            {t('stays.myReservations')}
+            {activeReservations.length > 0 && ` (${activeReservations.length})`}
+          </button>
         </div>
 
-        <div
-          className="search-grid"
-          style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}
-        >
-          <Autocomplete<StayDestination>
-            label="Destination"
-            value={search.destinationId}
-            display={`${destination.city}, ${destination.country}`}
-            placeholder="Where to?"
+        <div className="search-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(158px, 1fr))' }}>
+          <Autocomplete<Destination>
+            label={t('stays.destination')}
+            display={`${destinationCity(destination, locale)}, ${destinationCountry(destination, locale)}`}
+            placeholder={t('stays.whereTo')}
             options={searchDestinations(query)}
             onQuery={setQuery}
             onPick={(d) => setSearch((s) => ({ ...s, destinationId: d.id }))}
             keyOf={(d) => d.id}
             renderOption={(d) => (
               <div className="row-between">
-                <div>
-                  <div style={{ fontWeight: 600 }}>{d.city}</div>
-                  <div className="faint" style={{ fontSize: 11.5 }}>{d.country}</div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 600 }}>{destinationCity(d, locale)}</div>
+                  <div className="faint" style={{ fontSize: 11.5 }}>{destinationCountry(d, locale)}</div>
                 </div>
                 <span className="faint mono" style={{ fontSize: 12 }}>
-                  from {money(Math.round(d.basePrice * 0.6))}
+                  {money(Math.round(d.basePrice * 0.6))}
                 </span>
               </div>
             )}
           />
-          <div className="field">
-            <label>Check-in</label>
-            <input
-              className="input"
-              type="date"
-              min={todayIso()}
+          <div style={{ gridColumn: 'span 2', minWidth: 0 }}>
+            <DateField
+              label={`${t('stays.checkIn')} — ${t('stays.checkOut')}`}
+              range
               value={search.checkIn}
-              onChange={(e) => {
-                const checkIn = e.target.value
-                setSearch((s) => ({
-                  ...s,
-                  checkIn,
-                  checkOut: s.checkOut <= checkIn ? addDays(checkIn, 3) : s.checkOut,
-                }))
-              }}
+              endValue={search.checkOut}
+              onChange={(start, end) =>
+                setSearch((s) => ({ ...s, checkIn: start, checkOut: end ?? addDays(start, 3) }))
+              }
             />
           </div>
-          <div className="field">
-            <label>Check-out</label>
-            <input
-              className="input"
-              type="date"
-              min={addDays(search.checkIn, 1)}
-              value={search.checkOut}
-              onChange={(e) => setSearch((s) => ({ ...s, checkOut: e.target.value }))}
-            />
-          </div>
-          <Counter
-            label="Guests"
-            value={search.guests}
-            min={1}
-            max={8}
-            onChange={(guests) => setSearch((s) => ({ ...s, guests }))}
-          />
-          <Counter
-            label="Rooms"
-            value={search.rooms}
-            min={1}
-            max={4}
-            onChange={(rooms) => setSearch((s) => ({ ...s, rooms }))}
-          />
+          <Counter label={t('stays.guests')} value={search.guests} min={1} max={8} onChange={(guests) => setSearch((s) => ({ ...s, guests }))} />
+          <Counter label={t('stays.rooms')} value={search.rooms} min={1} max={4} onChange={(rooms) => setSearch((s) => ({ ...s, rooms }))} />
           <div className="field">
             <label>&nbsp;</label>
-            <button className="btn btn-primary btn-lg btn-block" onClick={runSearch}>
-              Search stays
+            <button className="btn btn-primary btn-lg btn-block" onClick={() => runSearch()}>
+              <IconSearch size={16} />
+              {t('stays.searchCta')}
             </button>
           </div>
         </div>
-        <div className="faint" style={{ fontSize: 12 }}>
+        <div className="faint" style={{ fontSize: 12.5 }}>
           {nights > 0
-            ? `${nights} night${nights > 1 ? 's' : ''} · ${shortDate(search.checkIn)} → ${shortDate(search.checkOut)}`
-            : 'Choose a check-out date after check-in.'}
+            ? `${plural.nights(nights)} · ${formatDate(search.checkIn, 'short')} ${arrow} ${formatDate(search.checkOut, 'short')}`
+            : t('stays.badDates')}
         </div>
       </section>
 
       {!submitted && (
-        <div style={{ marginTop: 18 }}>
-          <span className="panel-title">Popular destinations</span>
-          <div className="stay-grid" style={{ marginTop: 10 }}>
-            {DESTINATIONS.slice(0, 8).map((d, i) => (
+        <div style={{ marginTop: 24 }}>
+          <div className="rule-heading"><span className="panel-title">{t('stays.popular')}</span></div>
+          <div className="stay-grid stagger">
+            {searchDestinations('').map((d) => (
               <button
                 key={d.id}
                 className="card stay-card"
-                style={{ textAlign: 'left', font: 'inherit', color: 'inherit', border: '1px solid var(--line-soft)' }}
                 onClick={() => {
                   setSearch((s) => ({ ...s, destinationId: d.id }))
-                  setSubmitted({ ...search, destinationId: d.id })
+                  runSearch(d.id)
                 }}
               >
-                <div className="stay-photo" style={{ background: propertyGradient(i * 43) }}>
-                  {propertyIcon(i * 7)}
+                <div className="stay-photo">
+                  <PropertyArt seed={d.city.length * 977 + d.basePrice} />
                 </div>
                 <div className="stay-body">
-                  <strong>{d.city}</strong>
-                  <span className="faint" style={{ fontSize: 12 }}>{d.country}</span>
-                  <span className="muted" style={{ fontSize: 12.5 }}>
-                    Stays from <strong className="mono">{money(Math.round(d.basePrice * 0.6))}</strong>/night
+                  <strong style={{ fontSize: 15 }}>{destinationCity(d, locale)}</strong>
+                  <span className="faint" style={{ fontSize: 12.5 }}>{destinationCountry(d, locale)}</span>
+                  <span className="muted" style={{ fontSize: 13 }}>
+                    {t('stays.staysFrom', { amount: money(Math.round(d.basePrice * 0.6)) })}
                   </span>
                 </div>
               </button>
@@ -324,7 +293,7 @@ export function StaysTab() {
         <div className="results-layout">
           <aside className="card filters">
             <div className="row-between">
-              <span className="panel-title">Filters</span>
+              <span className="panel-title">{t('common.filters')}</span>
               <button
                 className="btn btn-ghost btn-sm"
                 onClick={() => {
@@ -335,13 +304,13 @@ export function StaysTab() {
                   setOnlyFreeCancellation(false)
                 }}
               >
-                Reset
+                {t('common.reset')}
               </button>
             </div>
 
             {priceCeiling > 0 && (
               <div className="filter-group">
-                <span className="panel-title">Nightly budget</span>
+                <span className="panel-title">{t('stays.nightlyBudget')}</span>
                 <input
                   type="range"
                   min={0}
@@ -349,99 +318,114 @@ export function StaysTab() {
                   step={5}
                   value={maxPrice ?? priceCeiling}
                   onChange={(e) => setMaxPrice(Number(e.target.value))}
+                  aria-label={t('stays.nightlyBudget')}
                 />
-                <span className="faint" style={{ fontSize: 12 }}>
-                  Up to {money(maxPrice ?? priceCeiling)} per night
+                <span className="faint" style={{ fontSize: 12.5 }}>
+                  {t('stays.upToPerNight', { amount: money(maxPrice ?? priceCeiling) })}
                 </span>
               </div>
             )}
 
             <div className="filter-group">
-              <span className="panel-title">Guest rating</span>
+              <span className="panel-title">{t('stays.guestRating')}</span>
               <div className="row" style={{ flexWrap: 'wrap', gap: 6 }}>
                 {[0, 7, 8, 9].map((r) => (
                   <button key={r} className="chip" aria-pressed={minRating === r} onClick={() => setMinRating(r)}>
-                    {r === 0 ? 'Any' : `${r}+`}
+                    {r === 0 ? t('common.any') : `${r}+`}
                   </button>
                 ))}
               </div>
             </div>
 
             <div className="filter-group">
-              <span className="panel-title">Property type</span>
-              {PROPERTY_TYPE_OPTIONS.map((t) => (
-                <label className="checkline" key={t.id}>
+              <span className="panel-title">{t('stays.propertyType')}</span>
+              {PROPERTY_TYPE_OPTIONS.map((type) => (
+                <label className="checkline" key={type.id}>
                   <input
                     type="checkbox"
-                    checked={types.includes(t.id)}
+                    checked={types.includes(type.id)}
                     onChange={() =>
                       setTypes((prev) =>
-                        prev.includes(t.id) ? prev.filter((x) => x !== t.id) : [...prev, t.id],
+                        prev.includes(type.id) ? prev.filter((x) => x !== type.id) : [...prev, type.id],
                       )
                     }
                   />
-                  {t.label}
+                  {t(propertyTypeKey(type.id))}
                 </label>
               ))}
             </div>
 
             <div className="filter-group">
-              <span className="panel-title">Must have</span>
+              <span className="panel-title">{t('stays.mustHave')}</span>
               <div className="row" style={{ flexWrap: 'wrap', gap: 6 }}>
-                {AMENITIES.map((a) => (
-                  <button
-                    key={a.id}
-                    className="chip"
-                    aria-pressed={requiredAmenities.includes(a.id)}
-                    onClick={() =>
-                      setRequiredAmenities((prev) =>
-                        prev.includes(a.id) ? prev.filter((x) => x !== a.id) : [...prev, a.id],
-                      )
-                    }
-                  >
-                    {a.icon} {a.label}
-                  </button>
-                ))}
+                {AMENITY_IDS.map((id) => {
+                  const Icon = AMENITY_ICONS[id]
+                  return (
+                    <button
+                      key={id}
+                      className="chip"
+                      aria-pressed={requiredAmenities.includes(id)}
+                      onClick={() =>
+                        setRequiredAmenities((prev) =>
+                          prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+                        )
+                      }
+                    >
+                      {Icon && <Icon size={13} />}
+                      {t(amenityKey(id))}
+                    </button>
+                  )
+                })}
               </div>
             </div>
 
             <label className="checkline">
-              <input
-                type="checkbox"
-                checked={onlyFreeCancellation}
-                onChange={(e) => setOnlyFreeCancellation(e.target.checked)}
-              />
-              Free cancellation only
+              <input type="checkbox" checked={onlyFreeCancellation} onChange={(e) => setOnlyFreeCancellation(e.target.checked)} />
+              {t('stays.freeCancellationOnly')}
             </label>
           </aside>
 
           <div>
             <div className="toolbar">
-              <strong>{visible.length}</strong>
-              <span className="muted">
-                stays in {DESTINATION_BY_ID.get(submitted.destinationId)?.city} ·{' '}
-                {submittedNights} night{submittedNights > 1 ? 's' : ''} · {submitted.guests} guest
-                {submitted.guests > 1 ? 's' : ''}
-              </span>
+              {loading ? (
+                <span className="row muted" style={{ gap: 8 }}>
+                  <span className="spinner-inline" />
+                  {t('loading.stays', {
+                    city: submittedDestination ? destinationCity(submittedDestination, locale) : '',
+                  })}
+                </span>
+              ) : (
+                <>
+                  <strong>{visible.length}</strong>
+                  <span className="muted">
+                    {t('stays.staysIn', {
+                      city: submittedDestination ? destinationCity(submittedDestination, locale) : '',
+                    })}{' '}
+                    · {plural.nights(submittedNights)} · {plural.guests(submitted.guests)}
+                  </span>
+                </>
+              )}
               <div className="grow" />
-              <span className="faint" style={{ fontSize: 12 }}>Sort</span>
-              <select className="select" style={{ width: 'auto' }} value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
-                {SORTS.map((s) => (
-                  <option key={s.id} value={s.id}>{s.label}</option>
-                ))}
-              </select>
+              <span className="faint" style={{ fontSize: 12.5 }}>{t('common.sort')}</span>
+              <Select value={sort} onChange={(v) => setSort(v as Sort)} style={{ width: 'auto' }} ariaLabel={t('common.sort')}>
+                <option value="recommended">{t('stays.sortRecommended')}</option>
+                <option value="price-asc">{t('stays.sortPriceAsc')}</option>
+                <option value="price-desc">{t('stays.sortPriceDesc')}</option>
+                <option value="rating">{t('stays.sortRating')}</option>
+                <option value="distance">{t('stays.sortDistance')}</option>
+              </Select>
             </div>
 
-            {visible.length === 0 ? (
+            {loading ? (
+              <div className="stay-grid">
+                {Array.from({ length: 6 }, (_, i) => <SkeletonStayCard key={i} />)}
+              </div>
+            ) : visible.length === 0 ? (
               <div className="card">
-                <Empty
-                  icon="🔍"
-                  title="Nothing matches those filters"
-                  body="Loosen the budget, drop a required amenity, or allow more property types."
-                />
+                <Empty icon={<IconSearch size={32} />} title={t('stays.noMatch')} body={t('stays.noMatchBody')} />
               </div>
             ) : (
-              <div className="stay-grid">
+              <div className="stay-grid stagger">
                 {visible.map((property) => (
                   <PropertyCard
                     key={property.id}
@@ -450,7 +434,11 @@ export function StaysTab() {
                     rooms={submitted.rooms}
                     saved={state.savedProperties.includes(property.id)}
                     onOpen={() => setDetail(property)}
-                    onToggleSave={() => dispatch({ type: 'toggle-saved', propertyId: property.id })}
+                    onToggleSave={() => {
+                      const wasSaved = state.savedProperties.includes(property.id)
+                      dispatch({ type: 'toggle-saved', propertyId: property.id })
+                      notify({ tone: 'info', title: wasSaved ? t('stays.unsavedToast') : t('stays.savedToast') })
+                    }}
                   />
                 ))}
               </div>
@@ -487,48 +475,45 @@ export function StaysTab() {
 
       <Modal
         open={reservationsOpen}
-        title="My reservations"
-        subtitle={`${activeReservations.length} upcoming · ${state.stayBookings.length} total`}
+        title={t('stays.myReservations')}
+        subtitle={t('flights.upcomingTotal', { active: activeReservations.length, total: state.stayBookings.length })}
         onClose={() => setReservationsOpen(false)}
       >
         {state.stayBookings.length === 0 ? (
-          <Empty icon="🛎️" title="No stays booked yet" body="Reserved rooms appear here with their references." />
+          <Empty icon={<IconBed size={32} />} title={t('stays.noReservations')} body={t('stays.noReservationsBody')} />
         ) : (
           state.stayBookings.map((b) => {
-            const property = PROPERTY_INDEX.get(b.propertyId)
+            const property = findProperty(b.propertyId)
             const room = property?.rooms.find((r) => r.id === b.roomId)
             return (
-              <div
-                key={b.id}
-                className="card card-pad stack"
-                style={{ opacity: b.status === 'cancelled' ? 0.55 : 1 }}
-              >
+              <div key={b.id} className="card card-pad stack" style={{ opacity: b.status === 'cancelled' ? 0.55 : 1 }}>
                 <div className="row-between">
                   <div>
-                    <strong>{property?.name ?? 'Property'}</strong>
-                    <div className="faint" style={{ fontSize: 12 }}>
-                      {property?.neighbourhood} · {room?.name ?? 'Room'}
+                    <strong>{property ? pairText(property.name, locale) : t('stays.property')}</strong>
+                    <div className="faint" style={{ fontSize: 12.5 }}>
+                      {property && pairText(property.neighbourhood, locale)}
+                      {room && ` · ${t(room.nameKey)}`}
                     </div>
                   </div>
-                  <span className={cx('pill', b.status === 'confirmed' ? 'pill-accent' : 'pill-down')}>
-                    {b.status === 'confirmed' ? 'Confirmed' : 'Cancelled'}
+                  <span className={cx('pill', b.status === 'confirmed' ? 'pill-brand' : 'pill-down')}>
+                    {b.status === 'confirmed' ? t('common.confirmed') : t('common.cancelled')}
                   </span>
                 </div>
                 <hr className="divider" />
-                <div className="row-between" style={{ fontSize: 13 }}>
-                  <span className="muted">Dates</span>
-                  <strong>{mediumDate(b.checkIn)} → {mediumDate(b.checkOut)}</strong>
+                <div className="row-between" style={{ fontSize: 13.5 }}>
+                  <span className="muted">{t('stays.dates')}</span>
+                  <strong>{formatDate(b.checkIn)} {arrow} {formatDate(b.checkOut)}</strong>
                 </div>
-                <div className="row-between" style={{ fontSize: 13 }}>
-                  <span className="muted">Reference</span>
+                <div className="row-between" style={{ fontSize: 13.5 }}>
+                  <span className="muted">{t('common.reference')}</span>
                   <strong className="mono">{b.reference}</strong>
                 </div>
-                <div className="row-between" style={{ fontSize: 13 }}>
-                  <span className="muted">Guest</span>
+                <div className="row-between" style={{ fontSize: 13.5 }}>
+                  <span className="muted">{t('stays.guest')}</span>
                   <span>{b.guestName}</span>
                 </div>
-                <div className="row-between" style={{ fontSize: 13 }}>
-                  <span className="muted">Paid</span>
+                <div className="row-between" style={{ fontSize: 13.5 }}>
+                  <span className="muted">{t('common.paid')}</span>
                   <strong className="mono">{money(b.total)}</strong>
                 </div>
                 {b.status === 'confirmed' && (
@@ -538,12 +523,12 @@ export function StaysTab() {
                       dispatch({ type: 'cancel-stay', id: b.id })
                       notify({
                         tone: 'info',
-                        title: 'Reservation cancelled',
-                        body: `${money(b.total)} refunded to your wallet.`,
+                        title: t('stays.cancelledToast'),
+                        body: t('stays.refundedToWallet', { amount: money(b.total) }),
                       })
                     }}
                   >
-                    Cancel reservation (full refund)
+                    {t('stays.cancelReservation')}
                   </button>
                 )}
               </div>

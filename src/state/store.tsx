@@ -19,8 +19,10 @@ import type {
 } from './types'
 import { initialQuotes, tickQuotes, type Quote } from '../data/stocks'
 import { makeRef } from '../lib/format'
+import { useI18n } from '../i18n'
+import type { MessageKey } from '../i18n/en'
 
-const STORAGE_KEY = 'skyline-terminal:v1'
+const STORAGE_KEY = 'eli-baba:state:v1'
 const STARTING_CASH = 25_000
 
 const EMPTY_STATE: AppState = {
@@ -50,14 +52,16 @@ type Action =
 let ledgerSeq = 0
 function ledgerEntry(
   state: AppState,
-  label: string,
+  labelKey: MessageKey,
+  labelParams: Record<string, string | number>,
   amount: number,
   category: LedgerEntry['category'],
 ): LedgerEntry {
   return {
     id: `l${Date.now()}-${ledgerSeq++}`,
     at: Date.now(),
-    label,
+    labelKey,
+    labelParams,
     amount,
     category,
     balanceAfter: state.cash + amount,
@@ -107,7 +111,8 @@ function applyFill(state: AppState, order: Order, price: number): AppState {
   const delta = order.side === 'buy' ? -notional : notional
   const entry = ledgerEntry(
     state,
-    `${order.side === 'buy' ? 'Bought' : 'Sold'} ${order.quantity} ${order.symbol} @ ${price.toFixed(2)}`,
+    order.side === 'buy' ? 'ledger.bought' : 'ledger.sold',
+    { count: order.quantity, symbol: order.symbol, price: price.toFixed(2) },
     delta,
     'trade',
   )
@@ -135,7 +140,8 @@ function reducer(state: AppState, action: Action): AppState {
       }
       const entry = ledgerEntry(
         state,
-        `Flight ${booking.outbound.legs[0].from} → ${booking.outbound.legs.at(-1)!.to}`,
+        'ledger.flight',
+        { route: `${booking.outbound.legs[0].from}–${booking.outbound.legs.at(-1)!.to}` },
         -booking.total,
         'flight',
       )
@@ -151,7 +157,7 @@ function reducer(state: AppState, action: Action): AppState {
       if (!booking || booking.status === 'cancelled') return state
       // Flexible fares refund in full; everything else keeps a 20% penalty.
       const refund = Math.round(booking.total * (booking.extras.flexible ? 1 : 0.8))
-      const entry = ledgerEntry(state, `Refund · ${booking.reference}`, refund, 'refund')
+      const entry = ledgerEntry(state, 'ledger.refund', { reference: booking.reference }, refund, 'refund')
       return {
         ...state,
         cash: state.cash + refund,
@@ -169,7 +175,7 @@ function reducer(state: AppState, action: Action): AppState {
         createdAt: Date.now(),
         status: 'confirmed',
       }
-      const entry = ledgerEntry(state, `Stay · ${booking.nights} nights`, -booking.total, 'stay')
+      const entry = ledgerEntry(state, 'ledger.stay', { nights: booking.nights }, -booking.total, 'stay')
       return {
         ...state,
         cash: state.cash - booking.total,
@@ -180,7 +186,7 @@ function reducer(state: AppState, action: Action): AppState {
     case 'cancel-stay': {
       const booking = state.stayBookings.find((b) => b.id === action.id)
       if (!booking || booking.status === 'cancelled') return state
-      const entry = ledgerEntry(state, `Refund · ${booking.reference}`, booking.total, 'refund')
+      const entry = ledgerEntry(state, 'ledger.refund', { reference: booking.reference }, booking.total, 'refund')
       return {
         ...state,
         cash: state.cash + booking.total,
@@ -231,7 +237,7 @@ function reducer(state: AppState, action: Action): AppState {
           : [...state.savedProperties, action.propertyId],
       }
     case 'deposit': {
-      const entry = ledgerEntry(state, 'Cash deposit', action.amount, 'deposit')
+      const entry = ledgerEntry(state, 'ledger.deposit', {}, action.amount, 'deposit')
       return {
         ...state,
         cash: state.cash + action.amount,
@@ -277,6 +283,7 @@ interface StoreValue {
 const StoreContext = createContext<StoreValue | null>(null)
 
 export function StoreProvider({ children }: { children: ReactNode }) {
+  const { t, money } = useI18n()
   const [state, dispatch] = useReducer(reducer, undefined, loadState)
   const [quotes, setQuotes] = useState<Record<string, Quote>>(initialQuotes)
   const [toasts, setToasts] = useState<Toast[]>([])
@@ -319,12 +326,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         dispatch({ type: 'fill-order', id: order.id, price: quote.price })
         notify({
           tone: 'success',
-          title: `Limit ${order.side} filled`,
-          body: `${order.quantity} ${order.symbol} at ${quote.price.toFixed(2)}`,
+          title: t('markets.limitFilled', { side: t(`side.${order.side}` as MessageKey) }),
+          body: t('markets.limitWorkingBody', {
+            side: t(`side.${order.side}` as MessageKey),
+            count: order.quantity,
+            symbol: order.symbol,
+            price: money(quote.price),
+          }),
         })
       }
     }
-  }, [quotes, openOrders, notify])
+  }, [quotes, openOrders, notify, t, money])
 
   const value = useMemo<StoreValue>(
     () => ({ state, dispatch, quotes, toasts, notify, dismissToast, paused, setPaused }),

@@ -1,10 +1,18 @@
 import { useState } from 'react'
-import { AMENITY_BY_ID, stayTotal, type Property, type RoomOption } from '../../data/hotels'
+import {
+  amenityKey,
+  pairText,
+  stayTotal,
+  type Property,
+  type RoomOption,
+} from '../../data/hotels'
 import { useStore } from '../../state/store'
 import { Modal, Steps } from '../../components/ui'
-import { cx, money, nightsBetween, shortDate } from '../../lib/format'
+import { AMENITY_ICONS, IconBell } from '../../components/icons'
+import { cx, nightsBetween } from '../../lib/format'
+import { useI18n } from '../../i18n'
 
-const STEPS = ['Room', 'Guest', 'Payment']
+const BREAKFAST_RATE = 18
 
 export function StayBookingFlow({
   property,
@@ -23,6 +31,7 @@ export function StayBookingFlow({
   rooms: number
   onClose: () => void
 }) {
+  const { t, locale, money, formatDate, plural, arrow } = useI18n()
   const { state, dispatch, notify } = useStore()
   const [step, setStep] = useState(0)
   const [selectedRoom, setSelectedRoom] = useState(room)
@@ -32,8 +41,9 @@ export function StayBookingFlow({
   const [breakfast, setBreakfast] = useState(false)
   const [done, setDone] = useState(false)
 
+  const STEPS = [t('stays.room'), t('stays.guest'), t('common.payment')]
   const nights = nightsBetween(checkIn, checkOut)
-  const breakfastFee = breakfast && !selectedRoom.breakfast ? 18 * nights * guests : 0
+  const breakfastFee = breakfast && !selectedRoom.breakfast ? BREAKFAST_RATE * nights * guests : 0
   const cost = stayTotal(selectedRoom.rate, checkIn, checkOut, rooms)
   const total = cost.total + breakfastFee
   const affordable = total <= state.cash
@@ -41,7 +51,7 @@ export function StayBookingFlow({
 
   const confirm = () => {
     if (!affordable) {
-      notify({ tone: 'error', title: 'Not enough cash', body: 'Top up your wallet to book this stay.' })
+      notify({ tone: 'error', title: t('flights.notEnoughCash'), body: t('stays.notEnoughCash') })
       return
     }
     dispatch({
@@ -62,27 +72,34 @@ export function StayBookingFlow({
     setDone(true)
     notify({
       tone: 'success',
-      title: 'Stay reserved',
-      body: `${property.name} · ${nights} night${nights > 1 ? 's' : ''} · ${money(total)}`,
+      title: t('stays.reservedToast'),
+      body: `${pairText(property.name, locale)} · ${plural.nights(nights)} · ${money(total)}`,
     })
   }
 
   if (done) {
     return (
-      <Modal open title="Reservation confirmed" onClose={onClose} size="narrow"
-        footer={<button className="btn btn-primary btn-block" onClick={onClose}>Done</button>}>
-        <div style={{ textAlign: 'center', display: 'grid', gap: 12, padding: '12px 0' }}>
-          <div style={{ fontSize: 44 }}>🛎️</div>
-          <h3 style={{ fontSize: 20 }}>See you at check-in.</h3>
-          <p className="muted">{property.name}, {property.neighbourhood}</p>
-          <div className="order-summary" style={{ textAlign: 'left' }}>
-            <div className="row-between"><span className="muted">Check-in</span><strong>{shortDate(checkIn)}</strong></div>
-            <div className="row-between"><span className="muted">Check-out</span><strong>{shortDate(checkOut)}</strong></div>
-            <div className="row-between"><span className="muted">Room</span><strong>{selectedRoom.name}</strong></div>
+      <Modal
+        open
+        size="narrow"
+        title={t('stays.confirmedTitle')}
+        onClose={onClose}
+        footer={<button className="btn btn-primary btn-block" onClick={onClose}>{t('common.done')}</button>}
+      >
+        <div style={{ textAlign: 'center', display: 'grid', gap: 14, padding: '8px 0', justifyItems: 'center' }}>
+          <IconBell size={40} style={{ color: 'var(--brand)' }} />
+          <h3 style={{ fontSize: 22 }}>{t('stays.confirmedHeadline')}</h3>
+          <p className="muted">
+            {pairText(property.name, locale)}, {pairText(property.neighbourhood, locale)}
+          </p>
+          <div className="order-summary" style={{ textAlign: 'start', width: '100%' }}>
+            <div className="row-between"><span className="muted">{t('stays.checkIn')}</span><strong>{formatDate(checkIn, 'short')}</strong></div>
+            <div className="row-between"><span className="muted">{t('stays.checkOut')}</span><strong>{formatDate(checkOut, 'short')}</strong></div>
+            <div className="row-between"><span className="muted">{t('stays.room')}</span><strong>{t(selectedRoom.nameKey)}</strong></div>
             <hr className="divider" />
-            <div className="row-between"><span className="muted">Charged</span><strong className="mono">{money(total)}</strong></div>
+            <div className="row-between"><span className="muted">{t('flights.charged')}</span><strong className="mono">{money(total)}</strong></div>
           </div>
-          <p className="faint" style={{ fontSize: 12 }}>Manage it under <strong>My reservations</strong>.</p>
+          <p className="faint" style={{ fontSize: 12.5 }}>{t('stays.manageUnder')}</p>
         </div>
       </Modal>
     )
@@ -91,31 +108,27 @@ export function StayBookingFlow({
   return (
     <Modal
       open
-      title={property.name}
+      title={pairText(property.name, locale)}
       subtitle={<Steps steps={STEPS} current={step} />}
       onClose={onClose}
       footer={
         <>
           <button className="btn" onClick={() => (step === 0 ? onClose() : setStep((s) => s - 1))}>
-            {step === 0 ? 'Cancel' : 'Back'}
+            {step === 0 ? t('common.cancel') : t('common.back')}
           </button>
-          <div className="grow" style={{ textAlign: 'right' }}>
+          <div className="grow" style={{ textAlign: 'end' }}>
             <div className="faint" style={{ fontSize: 11 }}>
-              {nights} night{nights > 1 ? 's' : ''} · {rooms} room{rooms > 1 ? 's' : ''}
+              {plural.nights(nights)} · {plural.rooms(rooms)}
             </div>
             <strong className="mono" style={{ fontSize: 18 }}>{money(total)}</strong>
           </div>
           {step < STEPS.length - 1 ? (
-            <button
-              className="btn btn-primary btn-lg"
-              disabled={step === 1 && !detailsComplete}
-              onClick={() => setStep((s) => s + 1)}
-            >
-              Continue
+            <button className="btn btn-primary btn-lg" disabled={step === 1 && !detailsComplete} onClick={() => setStep((s) => s + 1)}>
+              {t('common.continue')}
             </button>
           ) : (
             <button className="btn btn-primary btn-lg" onClick={confirm} disabled={!affordable}>
-              {affordable ? `Pay ${money(total)}` : 'Insufficient funds'}
+              {affordable ? t('common.pay', { amount: money(total) }) : t('common.insufficient')}
             </button>
           )}
         </>
@@ -123,36 +136,34 @@ export function StayBookingFlow({
     >
       {step === 0 && (
         <div className="stack" style={{ gap: 12 }}>
-          <span className="panel-title">Choose your room</span>
+          <span className="panel-title">{t('stays.chooseRoom')}</span>
           {property.rooms.map((option) => {
             const optionCost = stayTotal(option.rate, checkIn, checkOut, rooms)
             return (
               <button
                 key={option.id}
                 className={cx('room-row', selectedRoom.id === option.id && 'picked')}
-                style={{ textAlign: 'left', cursor: 'pointer', font: 'inherit', color: 'inherit' }}
+                style={{ textAlign: 'start', cursor: 'pointer', font: 'inherit', color: 'inherit' }}
                 onClick={() => setSelectedRoom(option)}
               >
-                <div className="stack" style={{ gap: 6 }}>
-                  <strong>{option.name}</strong>
+                <div className="stack" style={{ gap: 7 }}>
+                  <strong>{t(option.nameKey)}</strong>
                   <span className="faint" style={{ fontSize: 12.5 }}>
-                    {option.bed} · sleeps {option.sleeps}
+                    {t(option.bedKey)} · {t('stays.sleeps', { count: option.sleeps })}
                   </span>
                   <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
-                    {option.refundable ? (
-                      <span className="pill pill-accent">Free cancellation</span>
-                    ) : (
-                      <span className="pill">Non-refundable</span>
-                    )}
-                    {option.breakfast && <span className="pill">🥐 Breakfast included</span>}
-                    {option.left <= 3 && <span className="pill pill-amber">Only {option.left} left</span>}
+                    <span className={cx('pill', option.refundable && 'pill-brand')}>
+                      {option.refundable ? t('stays.freeCancellation') : t('stays.nonRefundable')}
+                    </span>
+                    {option.breakfast && <span className="pill">{t('stays.breakfastIncluded')}</span>}
+                    {option.left <= 3 && <span className="pill pill-accent">{t('stays.onlyLeft', { count: option.left })}</span>}
                   </div>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div className="mono" style={{ fontSize: 19, fontWeight: 650 }}>{money(option.rate)}</div>
-                  <div className="faint" style={{ fontSize: 11.5 }}>per night</div>
+                <div style={{ textAlign: 'end', alignSelf: 'center' }}>
+                  <div className="mono" style={{ fontSize: 19 }}>{money(option.rate)}</div>
+                  <div className="faint" style={{ fontSize: 11.5 }}>{t('common.perNight')}</div>
                   <div className="faint" style={{ fontSize: 11.5, marginTop: 4 }}>
-                    {money(optionCost.total)} total
+                    {money(optionCost.total)} {t('common.total')}
                   </div>
                 </div>
               </button>
@@ -164,22 +175,22 @@ export function StayBookingFlow({
       {step === 1 && (
         <div className="stack" style={{ gap: 14 }}>
           <div className="card card-pad" style={{ display: 'grid', gap: 12 }}>
-            <span className="panel-title">Lead guest</span>
+            <span className="panel-title">{t('stays.leadGuest')}</span>
             <div className="field">
-              <label>Full name</label>
-              <input className="input" value={name} placeholder="Alex Moreau" onChange={(e) => setName(e.target.value)} />
+              <label>{t('common.fullName')}</label>
+              <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
             </div>
             <div className="field">
-              <label>Email</label>
-              <input className="input" type="email" value={email} placeholder="alex@example.com" onChange={(e) => setEmail(e.target.value)} />
+              <label>{t('common.email')}</label>
+              <input className="input" type="email" dir="ltr" value={email} onChange={(e) => setEmail(e.target.value)} />
             </div>
             <div className="field">
-              <label>Special requests (optional)</label>
+              <label>{t('stays.specialRequests')} ({t('common.optional')})</label>
               <textarea
                 className="input"
                 rows={3}
                 value={requests}
-                placeholder="Late arrival, high floor, quiet room…"
+                placeholder={t('stays.requestsPlaceholder')}
                 onChange={(e) => setRequests(e.target.value)}
                 style={{ resize: 'vertical' }}
               />
@@ -188,77 +199,81 @@ export function StayBookingFlow({
           {!selectedRoom.breakfast && (
             <label className="card card-pad row-between" style={{ cursor: 'pointer' }}>
               <div>
-                <strong>Add breakfast</strong>
-                <div className="faint" style={{ fontSize: 12 }}>
-                  {money(18)} per guest per night · {money(18 * nights * guests)} for this stay
+                <strong>{t('stays.addBreakfast')}</strong>
+                <div className="faint" style={{ fontSize: 12.5 }}>
+                  {t('stays.breakfastBody', {
+                    rate: money(BREAKFAST_RATE),
+                    total: money(BREAKFAST_RATE * nights * guests),
+                  })}
                 </div>
               </div>
               <input
                 type="checkbox"
                 checked={breakfast}
                 onChange={(e) => setBreakfast(e.target.checked)}
-                style={{ width: 17, height: 17, accentColor: 'var(--accent-strong)' }}
+                style={{ width: 17, height: 17, accentColor: 'var(--brand)' }}
               />
             </label>
           )}
-          {!detailsComplete && (
-            <p className="faint" style={{ fontSize: 12.5 }}>
-              A name and a valid email are needed to continue.
-            </p>
-          )}
+          {!detailsComplete && <p className="faint" style={{ fontSize: 12.5 }}>{t('stays.needNameEmail')}</p>}
         </div>
       )}
 
       {step === 2 && (
         <div className="stack" style={{ gap: 14 }}>
-          <div className="card card-pad stack" style={{ gap: 8 }}>
-            <span className="panel-title">Your stay</span>
-            <div className="row-between"><span className="muted">Property</span><strong>{property.name}</strong></div>
-            <div className="row-between"><span className="muted">Room</span><strong>{selectedRoom.name}</strong></div>
-            <div className="row-between"><span className="muted">Dates</span>
-              <strong>{shortDate(checkIn)} → {shortDate(checkOut)}</strong>
+          <div className="card card-pad stack" style={{ gap: 9 }}>
+            <span className="panel-title">{t('stays.yourStay')}</span>
+            <div className="row-between"><span className="muted">{t('stays.property')}</span><strong>{pairText(property.name, locale)}</strong></div>
+            <div className="row-between"><span className="muted">{t('stays.room')}</span><strong>{t(selectedRoom.nameKey)}</strong></div>
+            <div className="row-between">
+              <span className="muted">{t('stays.dates')}</span>
+              <strong>{formatDate(checkIn, 'short')} {arrow} {formatDate(checkOut, 'short')}</strong>
             </div>
-            <div className="row-between"><span className="muted">Guests</span><strong>{guests}</strong></div>
+            <div className="row-between"><span className="muted">{t('stays.guests')}</span><strong>{plural.guests(guests)}</strong></div>
             <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
-              {property.amenities.slice(0, 6).map((id) => (
-                <span key={id} className="pill">
-                  {AMENITY_BY_ID.get(id)?.icon} {AMENITY_BY_ID.get(id)?.label}
-                </span>
-              ))}
+              {property.amenities.slice(0, 6).map((id) => {
+                const Icon = AMENITY_ICONS[id]
+                return (
+                  <span key={id} className="pill">
+                    {Icon && <Icon size={13} />}
+                    {t(amenityKey(id))}
+                  </span>
+                )
+              })}
             </div>
           </div>
 
           <div className="order-summary">
             <div className="row-between">
-              <span className="muted">{money(selectedRoom.rate)} × {nights} night{nights > 1 ? 's' : ''} × {rooms} room{rooms > 1 ? 's' : ''}</span>
+              <span className="muted">
+                {t('stays.rateTimes', {
+                  rate: money(selectedRoom.rate),
+                  nights: plural.nights(nights),
+                  rooms: plural.rooms(rooms),
+                })}
+              </span>
               <span className="mono">{money(cost.subtotal)}</span>
             </div>
-            <div className="row-between"><span className="muted">Taxes (12%)</span><span className="mono">{money(cost.taxes)}</span></div>
-            <div className="row-between"><span className="muted">Service fee</span><span className="mono">{money(cost.serviceFee)}</span></div>
+            <div className="row-between"><span className="muted">{t('common.taxesFees')}</span><span className="mono">{money(cost.taxes)}</span></div>
+            <div className="row-between"><span className="muted">{t('common.serviceFee')}</span><span className="mono">{money(cost.serviceFee)}</span></div>
             {breakfastFee > 0 && (
-              <div className="row-between"><span className="muted">Breakfast</span><span className="mono">{money(breakfastFee)}</span></div>
+              <div className="row-between"><span className="muted">{t('stays.addBreakfast')}</span><span className="mono">{money(breakfastFee)}</span></div>
             )}
             <hr className="divider" />
             <div className="row-between">
-              <strong>Total due</strong>
+              <strong>{t('common.totalDue')}</strong>
               <strong className="mono" style={{ fontSize: 17 }}>{money(total)}</strong>
             </div>
-            <div className="row-between faint" style={{ fontSize: 12 }}>
-              <span>Wallet balance</span>
+            <div className="row-between faint" style={{ fontSize: 12.5 }}>
+              <span>{t('common.walletBalance')}</span>
               <span className={cx('mono', !affordable && 'down')}>{money(state.cash)}</span>
             </div>
           </div>
 
           {requests.trim() && (
-            <p className="faint" style={{ fontSize: 12.5 }}>
-              Note to the property: “{requests.trim()}”
-            </p>
+            <p className="faint" style={{ fontSize: 12.5 }}>{t('stays.noteToProperty', { note: requests.trim() })}</p>
           )}
-          {!affordable && (
-            <p className="down" style={{ fontSize: 13 }}>
-              This reservation exceeds your wallet balance. Top up from the header.
-            </p>
-          )}
+          {!affordable && <p className="down" style={{ fontSize: 13 }}>{t('stays.overBalance')}</p>}
         </div>
       )}
     </Modal>

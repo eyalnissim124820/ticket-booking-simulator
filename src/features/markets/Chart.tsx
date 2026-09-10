@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
-import { money } from '../../lib/format'
+import { useI18n } from '../../i18n'
 
 interface Point {
   x: number
@@ -12,15 +12,16 @@ interface Point {
  *  Nothing here depends on a charting library. */
 export function PriceChart({
   series,
-  height = 260,
+  height = 264,
   positive,
-  label = 'Price',
+  label,
 }: {
   series: number[]
   height?: number
   positive: boolean
-  label?: string
+  label: string
 }) {
+  const { money, number } = useI18n()
   const wrapRef = useRef<HTMLDivElement>(null)
   const [hover, setHover] = useState<Point | null>(null)
   const width = 800
@@ -64,13 +65,13 @@ export function PriceChart({
   }, [series, height])
 
   if (!points.length) {
-    return (
-      <div className="skeleton-line" style={{ height, borderRadius: 'var(--radius)' }} aria-label="Loading chart" />
-    )
+    return <div className="skeleton" style={{ height }} aria-hidden="true" />
   }
 
   const stroke = positive ? 'var(--up)' : 'var(--down)'
-  const gradientId = positive ? 'grad-up' : 'grad-down'
+  const fill = positive ? 'var(--up-soft)' : 'var(--down-soft)'
+  // Redraw the line whenever the shape changes, so range switches animate.
+  const pathKey = `${label}-${series.length}-${positive}`
 
   const onMove = (e: React.MouseEvent<SVGSVGElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
@@ -86,40 +87,52 @@ export function PriceChart({
     <div className="chart-wrap" ref={wrapRef}>
       <svg
         viewBox={`0 0 ${width} ${height}`}
-        style={{ width: '100%', height, display: 'block' }}
+        // Price series read left-to-right in both locales, and RTL would flip
+        // where `text-anchor: end` puts the axis labels.
+        direction="ltr"
+        style={{ width: '100%', height, display: 'block', direction: 'ltr' }}
         onMouseMove={onMove}
         onMouseLeave={() => setHover(null)}
         role="img"
         aria-label={`${label} chart`}
       >
-        <defs>
-          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={positive ? '#34d399' : '#f87171'} stopOpacity="0.28" />
-            <stop offset="100%" stopColor={positive ? '#34d399' : '#f87171'} stopOpacity="0" />
-          </linearGradient>
-        </defs>
-
         {ticks.map((value, i) => {
           const y = padding.top + (1 - (value - min) / (max - min)) * (height - padding.top - padding.bottom)
           return (
             <g key={i}>
-              <line
-                x1={padding.left}
-                x2={width - padding.right}
-                y1={y}
-                y2={y}
-                stroke="var(--line-soft)"
-                strokeDasharray="3 5"
-              />
-              <text x={padding.left - 8} y={y + 4} textAnchor="end" fontSize="11" fill="var(--text-faint)" fontFamily="var(--mono)">
-                {value >= 1000 ? value.toFixed(0) : value.toFixed(2)}
+              <line x1={padding.left} x2={width - padding.right} y1={y} y2={y} stroke="var(--rule)" />
+              <text
+                x={padding.left - 8}
+                y={y + 4}
+                textAnchor="end"
+                fontSize="11"
+                fill="var(--ink-3)"
+                fontFamily="var(--mono)"
+              >
+                {number(value, value >= 1000 ? 0 : 2)}
               </text>
             </g>
           )
         })}
 
-        <path d={area} fill={`url(#${gradientId})`} />
-        <path d={path} fill="none" stroke={stroke} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+        {/* Flat tint under the line — no gradient. */}
+        <path d={area} fill={fill} />
+        <path
+          key={pathKey}
+          d={path}
+          fill="none"
+          stroke={stroke}
+          strokeWidth="1.8"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+          pathLength={1}
+          style={{
+            // @ts-expect-error custom property consumed by the drawLine keyframes
+            '--len': 1,
+            strokeDasharray: 1,
+            animation: 'drawLine 0.7s cubic-bezier(0.4, 0, 0.2, 1) both',
+          }}
+        />
 
         {hover && (
           <g>
@@ -128,10 +141,10 @@ export function PriceChart({
               x2={hover.x}
               y1={padding.top}
               y2={height - padding.bottom}
-              stroke="var(--text-faint)"
-              strokeDasharray="4 4"
+              stroke="var(--ink-3)"
+              strokeDasharray="3 4"
             />
-            <circle cx={hover.x} cy={hover.y} r="4.5" fill={stroke} stroke="var(--bg)" strokeWidth="2" />
+            <circle cx={hover.x} cy={hover.y} r="4" fill={stroke} stroke="var(--card)" strokeWidth="2" />
           </g>
         )}
       </svg>
@@ -139,10 +152,7 @@ export function PriceChart({
       {hover && (
         <div
           className="chart-tooltip"
-          style={{
-            left: `${(hover.x / width) * 100}%`,
-            top: (hover.y / height) * 100 + '%',
-          }}
+          style={{ left: `${(hover.x / width) * 100}%`, top: `${(hover.y / height) * 100}%` }}
         >
           {money(hover.value)}
         </div>
@@ -173,7 +183,7 @@ export function Sparkline({ series, positive }: { series: number[]; positive: bo
   if (!path) return null
   return (
     <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden="true">
-      <path d={path} fill="none" stroke={positive ? 'var(--up)' : 'var(--down)'} strokeWidth="1.5" />
+      <path d={path} fill="none" stroke={positive ? 'var(--up)' : 'var(--down)'} strokeWidth="1.4" />
     </svg>
   )
 }

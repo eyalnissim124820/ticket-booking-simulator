@@ -1,65 +1,91 @@
 import { useEffect, useState } from 'react'
 import { StoreProvider, usePortfolio, useStore, STARTING_CASH } from './state/store'
+import { I18nProvider, useI18n } from './i18n'
 import { FlightsTab } from './features/flights/FlightsTab'
 import { StaysTab } from './features/stays/StaysTab'
 import { MarketsTab } from './features/markets/MarketsTab'
-import { Modal } from './components/ui'
-import { cx, money, signedMoney } from './lib/format'
+import { BrandMark, Modal, Ornament } from './components/ui'
+import {
+  IconAlert,
+  IconBed,
+  IconChart,
+  IconCheck,
+  IconGlobe,
+  IconInfo,
+  IconPlane,
+} from './components/icons'
+import { cx } from './lib/format'
 
 type TabId = 'flights' | 'stays' | 'markets'
 
-const TABS: { id: TabId; label: string; icon: string }[] = [
-  { id: 'flights', label: 'Flights', icon: '✈️' },
-  { id: 'stays', label: 'Stays', icon: '🛏️' },
-  { id: 'markets', label: 'Markets', icon: '📈' },
+const TABS: { id: TabId; key: 'nav.flights' | 'nav.stays' | 'nav.markets'; Icon: typeof IconPlane }[] = [
+  { id: 'flights', key: 'nav.flights', Icon: IconPlane },
+  { id: 'stays', key: 'nav.stays', Icon: IconBed },
+  { id: 'markets', key: 'nav.markets', Icon: IconChart },
 ]
 
 const DEPOSITS = [1000, 5000, 25000]
 
+function LanguageToggle() {
+  const { t, locale, setLocale } = useI18n()
+  return (
+    // The visible label names the language you switch TO, and is the accessible
+    // name as well — an aria-label here would hide it from screen readers.
+    <button
+      className="lang-toggle"
+      lang={locale === 'he' ? 'en' : 'he'}
+      onClick={() => setLocale(locale === 'he' ? 'en' : 'he')}
+    >
+      <IconGlobe size={15} />
+      {t('nav.switchTo')}
+    </button>
+  )
+}
+
 function Wallet() {
+  const { t, money, signedMoney } = useI18n()
   const { state, dispatch, notify } = useStore()
   const portfolio = usePortfolio()
   const [open, setOpen] = useState(false)
 
   return (
     <>
-      <button
-        className="wallet"
-        onClick={() => setOpen(true)}
-        style={{ cursor: 'pointer', textAlign: 'left' }}
-        aria-label="Open wallet"
-      >
-        <div className="wallet-item">
-          <span>Cash</span>
+      <button className="wallet" onClick={() => setOpen(true)} aria-label={t('wallet.open')}>
+        <span className="wallet-item">
+          <span>{t('wallet.cash')}</span>
           <strong>{money(state.cash)}</strong>
-        </div>
-        <div className="wallet-item">
-          <span>Net worth</span>
+        </span>
+        <span className="wallet-item">
+          <span>{t('wallet.netWorth')}</span>
           <strong className={cx(portfolio.rows.length > 0 && (portfolio.totalPnl >= 0 ? 'up' : 'down'))}>
             {money(portfolio.netWorth)}
           </strong>
-        </div>
+        </span>
       </button>
 
-      <Modal open={open} title="Wallet" subtitle="One balance across all three desks" onClose={() => setOpen(false)} size="narrow">
+      <Modal
+        open={open}
+        size="narrow"
+        title={t('wallet.title')}
+        subtitle={t('wallet.subtitle')}
+        onClose={() => setOpen(false)}
+      >
         <div className="order-summary">
-          <div className="row-between"><span className="muted">Cash available</span><strong className="mono">{money(state.cash)}</strong></div>
-          <div className="row-between"><span className="muted">Invested</span><span className="mono">{money(portfolio.marketValue)}</span></div>
+          <div className="row-between"><span className="muted">{t('wallet.cashAvailable')}</span><strong className="mono">{money(state.cash)}</strong></div>
+          <div className="row-between"><span className="muted">{t('wallet.invested')}</span><span className="mono">{money(portfolio.marketValue)}</span></div>
           <div className="row-between">
-            <span className="muted">Unrealised P/L</span>
-            <span className={cx('mono', portfolio.totalPnl >= 0 ? 'up' : 'down')}>
-              {signedMoney(portfolio.totalPnl)}
-            </span>
+            <span className="muted">{t('wallet.unrealised')}</span>
+            <span className={cx('mono', portfolio.totalPnl >= 0 ? 'up' : 'down')}>{signedMoney(portfolio.totalPnl)}</span>
           </div>
           <hr className="divider" />
           <div className="row-between">
-            <strong>Net worth</strong>
+            <strong>{t('wallet.netWorth')}</strong>
             <strong className="mono" style={{ fontSize: 17 }}>{money(portfolio.netWorth)}</strong>
           </div>
         </div>
 
-        <div className="stack" style={{ gap: 9 }}>
-          <span className="panel-title">Add simulated funds</span>
+        <div className="stack" style={{ gap: 10 }}>
+          <span className="panel-title">{t('wallet.addFunds')}</span>
           <div className="row" style={{ gap: 8 }}>
             {DEPOSITS.map((amount) => (
               <button
@@ -67,7 +93,11 @@ function Wallet() {
                 className="btn grow"
                 onClick={() => {
                   dispatch({ type: 'deposit', amount })
-                  notify({ tone: 'success', title: `${money(amount)} added`, body: 'Play money — this is a simulator.' })
+                  notify({
+                    tone: 'success',
+                    title: t('wallet.added', { amount: money(amount) }),
+                    body: t('wallet.addedBody'),
+                  })
                 }}
               >
                 +{money(amount)}
@@ -76,22 +106,20 @@ function Wallet() {
           </div>
         </div>
 
-        <div className="stack" style={{ gap: 9 }}>
-          <span className="panel-title">Session</span>
+        <div className="stack" style={{ gap: 10 }}>
+          <span className="panel-title">{t('wallet.session')}</span>
           <p className="faint" style={{ fontSize: 12.5 }}>
-            Everything you book, trade and save lives in this browser only. Resetting clears your
-            trips, reservations, positions and ledger, and restores the opening balance of{' '}
-            {money(STARTING_CASH)}.
+            {t('wallet.sessionBody', { amount: money(STARTING_CASH) })}
           </p>
           <button
             className="btn btn-danger"
             onClick={() => {
               dispatch({ type: 'reset' })
               setOpen(false)
-              notify({ tone: 'info', title: 'Session reset', body: 'Back to a clean slate.' })
+              notify({ tone: 'info', title: t('wallet.resetDone'), body: t('wallet.resetBody') })
             }}
           >
-            Reset everything
+            {t('wallet.resetAll')}
           </button>
         </div>
       </Modal>
@@ -106,10 +134,10 @@ function Toasts() {
       {toasts.map((toast) => (
         <div key={toast.id} className={cx('toast', toast.tone)} onClick={() => dismissToast(toast.id)} role="status">
           <span className="toast-icon">
-            {toast.tone === 'success' ? '✅' : toast.tone === 'error' ? '⚠️' : 'ℹ️'}
+            {toast.tone === 'success' ? <IconCheck size={16} /> : toast.tone === 'error' ? <IconAlert size={16} /> : <IconInfo size={16} />}
           </span>
           <div>
-            <strong style={{ fontSize: 13 }}>{toast.title}</strong>
+            <strong style={{ fontSize: 13.5 }}>{toast.title}</strong>
             {toast.body && <div className="muted" style={{ fontSize: 12.5 }}>{toast.body}</div>}
           </div>
         </div>
@@ -119,10 +147,11 @@ function Toasts() {
 }
 
 function Shell() {
+  const { t } = useI18n()
   const { state } = useStore()
   const [tab, setTab] = useState<TabId>(() => {
     const hash = window.location.hash.replace('#', '')
-    return TABS.some((t) => t.id === hash) ? (hash as TabId) : 'flights'
+    return TABS.some((x) => x.id === hash) ? (hash as TabId) : 'flights'
   })
 
   useEffect(() => {
@@ -132,7 +161,7 @@ function Shell() {
   useEffect(() => {
     const onHashChange = () => {
       const hash = window.location.hash.replace('#', '')
-      if (TABS.some((t) => t.id === hash)) setTab(hash as TabId)
+      if (TABS.some((x) => x.id === hash)) setTab(hash as TabId)
     }
     window.addEventListener('hashchange', onHashChange)
     return () => window.removeEventListener('hashchange', onHashChange)
@@ -148,30 +177,25 @@ function Shell() {
     <div className="app">
       <header className="topbar">
         <div className="brand">
-          <span className="brand-mark">◆</span>
+          <BrandMark />
           <div>
-            Skyline Terminal
-            <small>Simulator</small>
+            <span className="brand-name">{t('app.name')}</span>
+            <span className="brand-sub">{t('app.tagline')}</span>
           </div>
         </div>
 
-        <nav className="tabs" role="tablist" aria-label="Sections">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              className="tab"
-              role="tab"
-              aria-selected={tab === t.id}
-              onClick={() => setTab(t.id)}
-            >
-              <span aria-hidden="true">{t.icon}</span>
-              {t.label}
-              {counts[t.id] > 0 && <span className="badge">{counts[t.id]}</span>}
+        <nav className="tabs" role="tablist" aria-label={t('app.name')}>
+          {TABS.map(({ id, key, Icon }) => (
+            <button key={id} className="tab" role="tab" aria-selected={tab === id} onClick={() => setTab(id)}>
+              <Icon size={16} />
+              {t(key)}
+              {counts[id] > 0 && <span className="badge">{counts[id]}</span>}
             </button>
           ))}
         </nav>
 
         <div className="topbar-right">
+          <LanguageToggle />
           <Wallet />
         </div>
       </header>
@@ -180,6 +204,11 @@ function Shell() {
         {tab === 'flights' && <FlightsTab />}
         {tab === 'stays' && <StaysTab />}
         {tab === 'markets' && <MarketsTab />}
+
+        <footer style={{ marginTop: 48, display: 'grid', justifyItems: 'center', gap: 10 }}>
+          <Ornament />
+          <p className="faint" style={{ fontSize: 12.5, textAlign: 'center' }}>{t('app.disclaimer')}</p>
+        </footer>
       </main>
 
       <Toasts />
@@ -189,8 +218,10 @@ function Shell() {
 
 export default function App() {
   return (
-    <StoreProvider>
-      <Shell />
-    </StoreProvider>
+    <I18nProvider>
+      <StoreProvider>
+        <Shell />
+      </StoreProvider>
+    </I18nProvider>
   )
 }

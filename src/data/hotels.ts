@@ -1,112 +1,180 @@
 import { makeRng, pick, pickMany, randFloat, randInt, type Rng } from '../lib/rng'
 import { nightsBetween } from '../lib/format'
+import { buildDestinations, neighbourhoodsFor, type Destination } from './destinations'
+import { EUROPE } from './cities-europe'
+import { AMERICAS } from './cities-americas'
+import { ASIA_PACIFIC } from './cities-asia'
+import { MIDDLE_EAST_AFRICA } from './cities-mea'
+import { EXTRA } from './cities-extra'
+import type { LocaleCode } from '../i18n'
+import type { MessageKey } from '../i18n/en'
 
-export type PropertyType = 'hotel' | 'apartment' | 'boutique' | 'hostel' | 'villa'
-
-export interface Amenity {
-  id: string
-  label: string
-  icon: string
-}
-
-export const AMENITIES: Amenity[] = [
-  { id: 'wifi', label: 'Free Wi-Fi', icon: '📶' },
-  { id: 'breakfast', label: 'Breakfast included', icon: '🥐' },
-  { id: 'pool', label: 'Pool', icon: '🏊' },
-  { id: 'gym', label: 'Fitness centre', icon: '🏋️' },
-  { id: 'spa', label: 'Spa', icon: '💆' },
-  { id: 'parking', label: 'Parking', icon: '🅿️' },
-  { id: 'kitchen', label: 'Kitchen', icon: '🍳' },
-  { id: 'ac', label: 'Air conditioning', icon: '❄️' },
-  { id: 'pets', label: 'Pet friendly', icon: '🐕' },
-  { id: 'workspace', label: 'Workspace', icon: '💻' },
-  { id: 'bar', label: 'Bar', icon: '🍸' },
-  { id: 'beach', label: 'Beach access', icon: '🏖️' },
-]
-
-export const AMENITY_BY_ID = new Map(AMENITIES.map((a) => [a.id, a]))
-
-export interface StayDestination {
-  id: string
-  city: string
-  country: string
-  /** Nightly price anchor for a mid-range room. */
-  basePrice: number
-  neighbourhoods: string[]
-}
-
-export const DESTINATIONS: StayDestination[] = [
-  { id: 'lisbon', city: 'Lisbon', country: 'Portugal', basePrice: 118, neighbourhoods: ['Alfama', 'Baixa', 'Príncipe Real', 'Belém', 'Bairro Alto'] },
-  { id: 'tokyo', city: 'Tokyo', country: 'Japan', basePrice: 176, neighbourhoods: ['Shinjuku', 'Shibuya', 'Ginza', 'Asakusa', 'Nakameguro'] },
-  { id: 'paris', city: 'Paris', country: 'France', basePrice: 214, neighbourhoods: ['Le Marais', 'Saint-Germain', 'Montmartre', 'Latin Quarter', 'Canal Saint-Martin'] },
-  { id: 'new-york', city: 'New York', country: 'United States', basePrice: 268, neighbourhoods: ['SoHo', 'Midtown', 'Williamsburg', 'Upper West Side', 'Tribeca'] },
-  { id: 'barcelona', city: 'Barcelona', country: 'Spain', basePrice: 142, neighbourhoods: ['Gothic Quarter', 'Eixample', 'Gràcia', 'Barceloneta', 'El Born'] },
-  { id: 'rome', city: 'Rome', country: 'Italy', basePrice: 154, neighbourhoods: ['Trastevere', 'Monti', 'Centro Storico', 'Prati', 'Testaccio'] },
-  { id: 'bangkok', city: 'Bangkok', country: 'Thailand', basePrice: 76, neighbourhoods: ['Sukhumvit', 'Riverside', 'Silom', 'Ari', 'Old Town'] },
-  { id: 'dubai', city: 'Dubai', country: 'United Arab Emirates', basePrice: 198, neighbourhoods: ['Marina', 'Downtown', 'Palm Jumeirah', 'Jumeirah Beach', 'Deira'] },
-  { id: 'london', city: 'London', country: 'United Kingdom', basePrice: 232, neighbourhoods: ['Shoreditch', 'Covent Garden', 'South Bank', 'Notting Hill', 'Mayfair'] },
-  { id: 'amsterdam', city: 'Amsterdam', country: 'Netherlands', basePrice: 186, neighbourhoods: ['Jordaan', 'De Pijp', 'Centrum', 'Oud-West', 'Oost'] },
-  { id: 'tel-aviv', city: 'Tel Aviv', country: 'Israel', basePrice: 204, neighbourhoods: ['Neve Tzedek', 'Rothschild', 'Florentin', 'Port', 'Jaffa'] },
-  { id: 'mexico-city', city: 'Mexico City', country: 'Mexico', basePrice: 98, neighbourhoods: ['Roma Norte', 'Condesa', 'Polanco', 'Coyoacán', 'Juárez'] },
-  { id: 'sydney', city: 'Sydney', country: 'Australia', basePrice: 188, neighbourhoods: ['Bondi', 'Surry Hills', 'The Rocks', 'Darlinghurst', 'Manly'] },
-  { id: 'cape-town', city: 'Cape Town', country: 'South Africa', basePrice: 112, neighbourhoods: ['V&A Waterfront', 'Camps Bay', 'City Bowl', 'Sea Point', 'Woodstock'] },
-  { id: 'singapore', city: 'Singapore', country: 'Singapore', basePrice: 205, neighbourhoods: ['Marina Bay', 'Chinatown', 'Orchard', 'Tiong Bahru', 'Katong'] },
-  { id: 'reykjavik', city: 'Reykjavík', country: 'Iceland', basePrice: 226, neighbourhoods: ['Miðborg', 'Vesturbær', 'Laugardalur', 'Old Harbour', 'Hlíðar'] },
-]
+export const DESTINATIONS: Destination[] = buildDestinations([
+  ...EUROPE,
+  ...AMERICAS,
+  ...ASIA_PACIFIC,
+  ...MIDDLE_EAST_AFRICA,
+  ...EXTRA,
+])
 
 export const DESTINATION_BY_ID = new Map(DESTINATIONS.map((d) => [d.id, d]))
 
-export function searchDestinations(query: string, limit = 6): StayDestination[] {
-  const q = query.trim().toLowerCase()
-  if (!q) return DESTINATIONS.slice(0, limit)
-  return DESTINATIONS.filter(
-    (d) => d.city.toLowerCase().includes(q) || d.country.toLowerCase().includes(q),
-  ).slice(0, limit)
-}
+export type PropertyType = 'hotel' | 'apartment' | 'boutique' | 'hostel' | 'villa' | 'riad' | 'lodge'
 
-const NAME_PREFIX = ['The', 'Hotel', 'Casa', 'Villa', 'Maison', 'Nord', 'Aurora', 'Lume', 'Terra', 'Sable']
-const NAME_CORE = ['Meridian', 'Solstice', 'Lantern', 'Harbour', 'Atrium', 'Cordial', 'Verano', 'Kestrel', 'Marbella', 'Onyx', 'Juniper', 'Palma', 'Ardent', 'Selva', 'Quill']
-const NAME_SUFFIX = ['House', 'Residences', 'Collection', 'Suites', 'Loft', 'Retreat', 'Rooms', '& Spa', 'Boutique', 'Lodge']
+export const AMENITY_IDS = [
+  'wifi', 'breakfast', 'pool', 'gym', 'spa', 'parking',
+  'kitchen', 'ac', 'pets', 'workspace', 'bar', 'beach',
+] as const
+export type AmenityId = (typeof AMENITY_IDS)[number]
 
-const PROPERTY_TYPES: { id: PropertyType; label: string; priceIndex: number }[] = [
-  { id: 'hotel', label: 'Hotel', priceIndex: 1 },
-  { id: 'apartment', label: 'Apartment', priceIndex: 0.85 },
-  { id: 'boutique', label: 'Boutique', priceIndex: 1.18 },
-  { id: 'hostel', label: 'Hostel', priceIndex: 0.38 },
-  { id: 'villa', label: 'Villa', priceIndex: 1.62 },
+export const amenityKey = (id: string): MessageKey => `amenity.${id}` as MessageKey
+
+const PROPERTY_TYPES: { id: PropertyType; priceIndex: number }[] = [
+  { id: 'hotel', priceIndex: 1 },
+  { id: 'apartment', priceIndex: 0.85 },
+  { id: 'boutique', priceIndex: 1.18 },
+  { id: 'hostel', priceIndex: 0.38 },
+  { id: 'villa', priceIndex: 1.62 },
+  { id: 'riad', priceIndex: 1.1 },
+  { id: 'lodge', priceIndex: 1.24 },
 ]
 
-export const propertyTypeLabel = (id: PropertyType) =>
-  PROPERTY_TYPES.find((p) => p.id === id)?.label ?? 'Hotel'
-
 export const PROPERTY_TYPE_OPTIONS = PROPERTY_TYPES
+export const propertyTypeKey = (id: PropertyType): MessageKey =>
+  `propertyType.${id}` as MessageKey
+
+/** Name parts carry both languages so the Hebrew catalogue reads as Hebrew
+ *  rather than a page of Latin script. */
+type Pair = [string, string]
+
+const NAME_PREFIX: Pair[] = [
+  ['The', 'ה'], ['Casa', 'קאזה '], ['Villa', 'וילה '], ['Maison', 'מזון '],
+  ['Hotel', 'מלון '], ['Nord', 'נורד '], ['Terra', 'טרה '], ['Sable', 'סאבל '],
+  ['Aurora', 'אורורה '], ['Lume', 'לומה '],
+]
+const NAME_CORE: Pair[] = [
+  ['Meridian', 'מרידיאן'], ['Solstice', 'סולסטיס'], ['Lantern', 'לנטרן'], ['Harbour', 'הארבור'],
+  ['Atrium', 'אטריום'], ['Cordial', 'קורדיאל'], ['Verano', 'ורנו'], ['Kestrel', 'קסטרל'],
+  ['Marbella', 'מרביה'], ['Onyx', 'אוניקס'], ['Juniper', 'ג׳וניפר'], ['Palma', 'פלמה'],
+  ['Ardent', 'ארדנט'], ['Selva', 'סלווה'], ['Quill', 'קוויל'], ['Alba', 'אלבה'],
+  ['Cygnet', 'סיגנט'], ['Indigo', 'אינדיגו'], ['Almond', 'אלמונד'], ['Cedar', 'סידר'],
+]
+const NAME_SUFFIX: Pair[] = [
+  ['House', 'האוס'], ['Residences', 'רזידנס'], ['Collection', 'קולקשן'], ['Suites', 'סוויטס'],
+  ['Loft', 'לופט'], ['Retreat', 'ריטריט'], ['Rooms', 'רומס'], ['& Spa', 'אנד ספא'],
+  ['Boutique', 'בוטיק'], ['Lodge', 'לודג׳'], ['Court', 'קורט'], ['Terrace', 'טראס'],
+]
+
+const BLURBS: Pair[] = [
+  [
+    'A quiet courtyard building a few minutes from the main square, with a rooftop that stays open late.',
+    'בניין עם חצר שקטה, כמה דקות מהכיכר המרכזית, וגג שנשאר פתוח עד מאוחר.',
+  ],
+  [
+    'Converted townhouse with original tilework, a small library bar, and rooms facing an inner garden.',
+    'בית עירוני משופץ עם אריחים מקוריים, בר-ספרייה קטן וחדרים הפונים לגן פנימי.',
+  ],
+  [
+    'Design-led rooms with floor-to-ceiling windows, a lobby café, and bikes free for guests.',
+    'חדרים מעוצבים עם חלונות מרצפה לתקרה, בית קפה בלובי ואופניים חינם לאורחים.',
+  ],
+  [
+    'Family-run, generous breakfast, and a terrace that catches the afternoon sun.',
+    'ניהול משפחתי, ארוחת בוקר נדיבה ומרפסת שתופסת את שמש אחר הצהריים.',
+  ],
+  [
+    'A modern tower with wide city views, a heated pool on the fourteenth floor, and a 24-hour gym.',
+    'מגדל מודרני עם נוף עירוני רחב, בריכה מחוממת בקומה הארבע-עשרה וחדר כושר מסביב לשעון.',
+  ],
+  [
+    'Stone walls, thick shutters and a shaded inner courtyard — cool even in high summer.',
+    'קירות אבן, תריסים עבים וחצר פנימית מוצלת — קריר גם בשיא הקיץ.',
+  ],
+]
+
+const REVIEW_TITLES: Pair[] = [
+  ['Would book again', 'נחזור בלי לחשוב'],
+  ['Perfect location', 'מיקום מושלם'],
+  ['Small but spotless', 'קטן אבל נקי להפליא'],
+  ['Great value', 'תמורה מצוינת'],
+  ['Lovely staff', 'צוות מקסים'],
+  ['Quiet and comfortable', 'שקט ונוח'],
+  ['Better than the photos', 'יפה יותר מהתמונות'],
+  ['Good, with caveats', 'טוב, עם הסתייגויות'],
+]
+
+const REVIEW_BODIES: Pair[] = [
+  [
+    'Rooms were spotless and the staff let us drop bags early. Ten minutes on foot from everything we wanted to see.',
+    'החדרים היו נקיים לגמרי והצוות אפשר לנו להשאיר מזוודות מוקדם. עשר דקות ברגל מכל מה שרצינו לראות.',
+  ],
+  [
+    'The bed was excellent and the shower had real pressure. Breakfast is worth adding on.',
+    'המיטה מצוינת ובמקלחת יש לחץ מים אמיתי. שווה להוסיף את ארוחת הבוקר.',
+  ],
+  [
+    'Compact room, but very well designed. Street noise on the lower floors — ask for something high up.',
+    'החדר קומפקטי אבל מעוצב היטב. יש רעש רחוב בקומות הנמוכות — בקשו משהו גבוה.',
+  ],
+  [
+    'Great value for the neighbourhood. We ate at the little place next door three nights running.',
+    'תמורה מצוינת ביחס לשכונה. אכלנו במקום הקטן שליד שלושה ערבים ברצף.',
+  ],
+  [
+    'Check-in took a while but the room made up for it. The rooftop is the main event here.',
+    'הצ׳ק-אין לקח זמן, אבל החדר פיצה על זה. הגג הוא האטרקציה האמיתית.',
+  ],
+  [
+    'Exactly what the listing promised. Quiet, clean, easy transit access.',
+    'בדיוק מה שהובטח. שקט, נקי ונגיש בתחבורה ציבורית.',
+  ],
+]
+
+const REVIEW_AUTHORS: Pair[] = [
+  ['Maya', 'מאיה'], ['Daniel', 'דניאל'], ['Sofia', 'סופיה'], ['Liam', 'ליאם'],
+  ['Noa', 'נועה'], ['Hugo', 'הוגו'], ['Ines', 'אינס'], ['Tom', 'תום'],
+  ['Yuki', 'יוקי'], ['Ana', 'אנה'], ['Ravi', 'ראווי'], ['Elena', 'אלנה'],
+  ['Marc', 'מארק'], ['Chloe', 'קלואי'], ['Omar', 'עומר'], ['Shira', 'שירה'],
+]
+
+type RoomTemplate = { key: MessageKey; bed: MessageKey; mult: number; sleeps: number }
+
+const HOSTEL_ROOMS: RoomTemplate[] = [
+  { key: 'room.dorm6', bed: 'bed.single', mult: 0.55, sleeps: 1 },
+  { key: 'room.dorm4', bed: 'bed.single', mult: 0.72, sleeps: 1 },
+  { key: 'room.privateTwin', bed: 'bed.twin', mult: 1.4, sleeps: 2 },
+]
+const STANDARD_ROOMS: RoomTemplate[] = [
+  { key: 'room.standardDouble', bed: 'bed.double', mult: 1, sleeps: 2 },
+  { key: 'room.superiorQueen', bed: 'bed.queen', mult: 1.22, sleeps: 2 },
+  { key: 'room.deluxeKing', bed: 'bed.king', mult: 1.5, sleeps: 2 },
+  { key: 'room.familySuite', bed: 'bed.kingSofa', mult: 1.95, sleeps: 4 },
+]
 
 export interface RoomOption {
   id: string
-  name: string
-  /** Nightly rate before taxes for this room type. */
+  nameKey: MessageKey
+  bedKey: MessageKey
   rate: number
   sleeps: number
-  bed: string
   refundable: boolean
   breakfast: boolean
   left: number
 }
 
 export interface Review {
-  author: string
-  country: string
+  author: Pair
   score: number
-  title: string
-  body: string
+  title: Pair
+  body: Pair
   nights: number
 }
 
 export interface Property {
   id: string
-  name: string
+  name: Pair
   destinationId: string
-  neighbourhood: string
+  neighbourhood: Pair
   type: PropertyType
   stars: number
   rating: number
@@ -114,95 +182,70 @@ export interface Property {
   nightlyRate: number
   amenities: string[]
   distanceToCentreKm: number
-  /** Two hues used to render the placeholder gallery artwork. */
-  hue: number
-  blurb: string
+  /** Drives the generated illustration for this listing. */
+  artSeed: number
+  blurb: Pair
   rooms: RoomOption[]
   reviews: Review[]
   freeCancellation: boolean
   sustainable: boolean
 }
 
-const REVIEW_AUTHORS = ['Maya', 'Daniel', 'Sofia', 'Liam', 'Noa', 'Hugo', 'Ines', 'Tom', 'Yuki', 'Ana', 'Ravi', 'Elena', 'Marc', 'Chloe', 'Omar']
-const REVIEW_COUNTRIES = ['Portugal', 'Germany', 'Canada', 'Japan', 'Israel', 'Brazil', 'France', 'Australia', 'Spain', 'Norway']
-const REVIEW_TITLES = ['Would book again', 'Perfect location', 'Small but spotless', 'Great value', 'Lovely staff', 'Quiet and comfortable', 'Better than the photos', 'Good, with caveats']
-const REVIEW_BODIES = [
-  'Rooms were spotless and the staff let us drop bags early. Ten minutes on foot from everything we wanted to see.',
-  'The bed was excellent and the shower had real pressure. Breakfast is worth adding on.',
-  'Compact room, but very well designed. Street noise on the lower floors — ask for something high up.',
-  'Great value for the neighbourhood. We ate at the little place next door three nights running.',
-  'Check-in took a while but the room made up for it. The rooftop is the main event here.',
-  'Exactly what the listing promised. Quiet, clean, easy transit access.',
-]
-const BLURBS = [
-  'A quiet courtyard building a few minutes from the main square, with a rooftop that stays open late.',
-  'Converted townhouse with original tilework, a small library bar, and rooms facing an inner garden.',
-  'Design-led rooms with floor-to-ceiling windows, a lobby café, and bikes free for guests.',
-  'Family-run, generous breakfast, and a terrace that catches the afternoon sun.',
-  'Modern tower with skyline views, a heated pool on the 14th floor, and a 24-hour gym.',
-]
-
 function makeRooms(rng: Rng, nightly: number, type: PropertyType): RoomOption[] {
-  const templates =
-    type === 'hostel'
-      ? [
-          { name: 'Bed in 6-person dorm', mult: 0.55, sleeps: 1, bed: '1 single bed' },
-          { name: 'Bed in 4-person dorm', mult: 0.72, sleeps: 1, bed: '1 single bed' },
-          { name: 'Private twin room', mult: 1.4, sleeps: 2, bed: '2 single beds' },
-        ]
-      : [
-          { name: 'Standard double', mult: 1, sleeps: 2, bed: '1 double bed' },
-          { name: 'Superior queen', mult: 1.22, sleeps: 2, bed: '1 queen bed' },
-          { name: 'Deluxe king with view', mult: 1.5, sleeps: 2, bed: '1 king bed' },
-          { name: 'Family suite', mult: 1.95, sleeps: 4, bed: '1 king + sofa bed' },
-        ]
-  return templates.map((t, i) => ({
+  const templates = type === 'hostel' ? HOSTEL_ROOMS : STANDARD_ROOMS
+  return templates.map((template, i) => ({
     id: `r${i}`,
-    name: t.name,
-    rate: Math.round(nightly * t.mult * randFloat(rng, 0.96, 1.06)),
-    sleeps: t.sleeps,
-    bed: t.bed,
+    nameKey: template.key,
+    bedKey: template.bed,
+    rate: Math.round(nightly * template.mult * randFloat(rng, 0.96, 1.06)),
+    sleeps: template.sleeps,
     refundable: rng() < 0.65,
     breakfast: rng() < 0.5,
     left: randInt(rng, 1, 8),
   }))
 }
 
+const PROPERTIES_PER_DESTINATION = 18
+
 export function propertiesFor(destinationId: string): Property[] {
-  const dest = DESTINATION_BY_ID.get(destinationId) ?? DESTINATIONS[0]
-  const rng = makeRng(`stays-${dest.id}`)
-  const count = 18
+  const destination = DESTINATION_BY_ID.get(destinationId) ?? DESTINATIONS[0]
+  const rng = makeRng(`stays-${destination.id}`)
+  const hoods = neighbourhoodsFor(destination)
   const out: Property[] = []
 
-  for (let i = 0; i < count; i++) {
+  for (let i = 0; i < PROPERTIES_PER_DESTINATION; i++) {
     const type = pick(rng, PROPERTY_TYPES)
     const stars = type.id === 'hostel' ? randInt(rng, 1, 2) : randInt(rng, 2, 5)
     const nightly = Math.round(
-      dest.basePrice * type.priceIndex * (0.62 + stars * 0.16) * randFloat(rng, 0.85, 1.2),
+      destination.basePrice * type.priceIndex * (0.62 + stars * 0.16) * randFloat(rng, 0.85, 1.2),
     )
     const rating = Math.min(9.9, 6.4 + stars * 0.42 + randFloat(rng, -0.5, 1.1))
-    const name = `${pick(rng, NAME_PREFIX)} ${pick(rng, NAME_CORE)} ${pick(rng, NAME_SUFFIX)}`
+    const prefix = pick(rng, NAME_PREFIX)
+    const core = pick(rng, NAME_CORE)
+    const suffix = pick(rng, NAME_SUFFIX)
 
     out.push({
-      id: `${dest.id}-${i}`,
-      name,
-      destinationId: dest.id,
-      neighbourhood: pick(rng, dest.neighbourhoods),
+      id: `${destination.id}-${i}`,
+      name: [
+        `${prefix[0]} ${core[0]} ${suffix[0]}`,
+        `${prefix[1]}${core[1]} ${suffix[1]}`.trim(),
+      ],
+      destinationId: destination.id,
+      neighbourhood: pick(rng, hoods),
       type: type.id,
       stars,
       rating: Math.round(rating * 10) / 10,
       reviewCount: randInt(rng, 48, 3200),
       nightlyRate: nightly,
-      amenities: pickMany(rng, AMENITIES, randInt(rng, 4, 9)).map((a) => a.id),
+      amenities: pickMany(rng, AMENITY_IDS, randInt(rng, 4, 9)),
       distanceToCentreKm: Math.round(randFloat(rng, 0.2, 7.4) * 10) / 10,
-      hue: randInt(rng, 0, 359),
+      artSeed: randInt(rng, 0, 99999),
       blurb: pick(rng, BLURBS),
       rooms: makeRooms(rng, nightly, type.id),
       freeCancellation: rng() < 0.7,
       sustainable: rng() < 0.3,
       reviews: Array.from({ length: randInt(rng, 3, 5) }, () => ({
         author: pick(rng, REVIEW_AUTHORS),
-        country: pick(rng, REVIEW_COUNTRIES),
         score: Math.round(Math.min(10, rating + randFloat(rng, -1.4, 1.2)) * 10) / 10,
         title: pick(rng, REVIEW_TITLES),
         body: pick(rng, REVIEW_BODIES),
@@ -213,12 +256,57 @@ export function propertiesFor(destinationId: string): Property[] {
   return out
 }
 
-export const PROPERTY_INDEX = new Map<string, Property>()
-for (const dest of DESTINATIONS) {
-  for (const p of propertiesFor(dest.id)) PROPERTY_INDEX.set(p.id, p)
+/** Properties are generated on demand and cached — 831 destinations × 18 is far
+ *  too much to build eagerly at start-up. */
+const propertyCache = new Map<string, Property[]>()
+
+export function cachedPropertiesFor(destinationId: string): Property[] {
+  let cached = propertyCache.get(destinationId)
+  if (!cached) {
+    cached = propertiesFor(destinationId)
+    propertyCache.set(destinationId, cached)
+  }
+  return cached
 }
 
-/** Weekend nights carry a surcharge — mirrors how real rate calendars behave. */
+export function findProperty(propertyId: string): Property | undefined {
+  const destinationId = propertyId.slice(0, propertyId.lastIndexOf('-'))
+  return cachedPropertiesFor(destinationId).find((p) => p.id === propertyId)
+}
+
+export const pairText = (pair: Pair, locale: LocaleCode) => (locale === 'he' ? pair[1] : pair[0])
+
+export function searchDestinations(query: string, limit = 8): Destination[] {
+  const q = query.trim().toLowerCase()
+  if (!q) {
+    const featured = ['tel-aviv-israel', 'lisbon-portugal', 'tokyo-japan', 'rome-italy', 'barcelona-spain', 'new-york-united-states', 'athens-greece', 'bangkok-thailand']
+    return featured
+      .map((id) => DESTINATION_BY_ID.get(id))
+      .filter((d): d is Destination => Boolean(d))
+      .slice(0, limit)
+  }
+  const matches: { destination: Destination; score: number }[] = []
+  for (const destination of DESTINATIONS) {
+    const city = destination.city.toLowerCase()
+    const cityHe = destination.cityHe
+    let score = -1
+    if (city === q || cityHe === q) score = 0
+    else if (city.startsWith(q) || cityHe.startsWith(q)) score = 1
+    else if (city.includes(q) || cityHe.includes(q)) score = 2
+    else if (destination.country.toLowerCase().includes(q)) score = 3
+    if (score >= 0) matches.push({ destination, score })
+    if (matches.length > 400) break
+  }
+  matches.sort(
+    (a, b) =>
+      a.score - b.score ||
+      b.destination.basePrice - a.destination.basePrice ||
+      a.destination.city.localeCompare(b.destination.city),
+  )
+  return matches.slice(0, limit).map((m) => m.destination)
+}
+
+/** Nightly rate × nights × rooms, plus the two fees the checkout shows. */
 export function stayTotal(rate: number, checkIn: string, checkOut: string, rooms: number) {
   const nights = nightsBetween(checkIn, checkOut)
   const subtotal = rate * nights * rooms

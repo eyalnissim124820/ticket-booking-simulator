@@ -1,24 +1,32 @@
 import { AIRPORTS, getAirport, distanceKm, type Airport } from './airports'
 import { makeRng, pick, randInt, randFloat, type Rng } from '../lib/rng'
+import type { AirlineMark } from '../components/AirlineLogo'
+import type { LocaleCode } from '../i18n'
+import type { MessageKey } from '../i18n/en'
 
 export interface Airline {
   code: string
   name: string
+  nameHe: string
   color: string
+  mark: AirlineMark
   /** Multiplier applied to the base fare — carrier positioning. */
   priceIndex: number
   onTime: number
 }
 
 export const AIRLINES: Airline[] = [
-  { code: 'SK', name: 'Skyline Air', color: '#5eead4', priceIndex: 1.0, onTime: 0.86 },
-  { code: 'NV', name: 'Nova Atlantic', color: '#818cf8', priceIndex: 1.14, onTime: 0.89 },
-  { code: 'ZP', name: 'Zephyr Airways', color: '#f472b6', priceIndex: 0.82, onTime: 0.74 },
-  { code: 'MR', name: 'Meridian', color: '#fbbf24', priceIndex: 1.28, onTime: 0.92 },
-  { code: 'AU', name: 'Aurora Jet', color: '#38bdf8', priceIndex: 0.91, onTime: 0.81 },
-  { code: 'HL', name: 'Helios Express', color: '#fb7185', priceIndex: 0.71, onTime: 0.68 },
-  { code: 'PC', name: 'Pacific Crown', color: '#34d399', priceIndex: 1.21, onTime: 0.9 },
+  { code: 'SK', name: 'Skyline Air', nameHe: 'סקייליין', color: '#14524a', mark: 'chevron', priceIndex: 1.0, onTime: 0.86 },
+  { code: 'NV', name: 'Nova Atlantic', nameHe: 'נובה אטלנטיק', color: '#2b4a80', mark: 'arc', priceIndex: 1.14, onTime: 0.89 },
+  { code: 'ZP', name: 'Zephyr Airways', nameHe: 'זפיר', color: '#a03a63', mark: 'wave', priceIndex: 0.82, onTime: 0.74 },
+  { code: 'MR', name: 'Meridian', nameHe: 'מרידיאן', color: '#8a5c11', mark: 'star', priceIndex: 1.28, onTime: 0.92 },
+  { code: 'AU', name: 'Aurora Jet', nameHe: 'אורורה ג׳ט', color: '#1f6f86', mark: 'sun', priceIndex: 0.91, onTime: 0.81 },
+  { code: 'HL', name: 'Helios Express', nameHe: 'הליוס אקספרס', color: '#ad3f2c', mark: 'delta', priceIndex: 0.71, onTime: 0.68 },
+  { code: 'PC', name: 'Pacific Crown', nameHe: 'פסיפיק קראון', color: '#4a3b7a', mark: 'crown', priceIndex: 1.21, onTime: 0.9 },
 ]
+
+export const airlineName = (airline: Airline, locale: LocaleCode) =>
+  locale === 'he' ? airline.nameHe : airline.name
 
 export const AIRLINE_BY_CODE = new Map(AIRLINES.map((a) => [a.code, a]))
 
@@ -34,14 +42,14 @@ export const AIRCRAFT = [
 
 export type CabinClass = 'economy' | 'premium' | 'business' | 'first'
 
-export const CABINS: { id: CabinClass; label: string; multiplier: number }[] = [
-  { id: 'economy', label: 'Economy', multiplier: 1 },
-  { id: 'premium', label: 'Premium economy', multiplier: 1.65 },
-  { id: 'business', label: 'Business', multiplier: 3.1 },
-  { id: 'first', label: 'First', multiplier: 5.4 },
+export const CABINS: { id: CabinClass; multiplier: number }[] = [
+  { id: 'economy', multiplier: 1 },
+  { id: 'premium', multiplier: 1.65 },
+  { id: 'business', multiplier: 3.1 },
+  { id: 'first', multiplier: 5.4 },
 ]
 
-export const cabinLabel = (id: CabinClass) => CABINS.find((c) => c.id === id)?.label ?? 'Economy'
+export const cabinKey = (id: CabinClass): MessageKey => `cabin.${id}` as MessageKey
 
 export interface FlightLeg {
   from: string

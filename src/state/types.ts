@@ -1,4 +1,5 @@
 import type { CabinClass, FlightOffer } from '../data/flights'
+import type { MessageKey } from '../i18n/en'
 
 export interface Passenger {
   firstName: string
@@ -66,7 +67,10 @@ export interface Order {
 export interface LedgerEntry {
   id: string
   at: number
-  label: string
+  /** Stored as a message key plus its values so the ledger re-renders in
+   *  whichever language the reader has selected. */
+  labelKey: MessageKey
+  labelParams: Record<string, string | number>
   amount: number
   category: 'flight' | 'stay' | 'trade' | 'refund' | 'deposit'
   balanceAfter: number

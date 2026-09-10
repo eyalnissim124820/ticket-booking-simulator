@@ -1,0 +1,57 @@
+import type { DestRow } from './destinations'
+
+/** Middle East & Africa. [city, cityHe, country, nightly anchor USD] */
+export const MIDDLE_EAST_AFRICA: DestRow[] = [
+  // Israel
+  ['Tel Aviv', 'תל אביב', 'Israel', 204], ['Jerusalem', 'ירושלים', 'Israel', 178],
+  ['Haifa', 'חיפה', 'Israel', 138], ['Eilat', 'אילת', 'Israel', 168],
+  ['Tiberias', 'טבריה', 'Israel', 132], ['Nazareth', 'נצרת', 'Israel', 108],
+  ['Acre', 'עכו', 'Israel', 118], ['Safed', 'צפת', 'Israel', 112],
+  ['Herzliya', 'הרצליה', 'Israel', 196], ['Caesarea', 'קיסריה', 'Israel', 208],
+  ['Mitzpe Ramon', 'מצפה רמון', 'Israel', 142], ['Dead Sea', 'ים המלח', 'Israel', 186],
+  ['Rosh Pina', 'ראש פינה', 'Israel', 152], ['Netanya', 'נתניה', 'Israel', 146],
+  // Türkiye & Levant
+  ['Istanbul', 'איסטנבול', 'Türkiye', 118], ['Cappadocia', 'קפדוקיה', 'Türkiye', 108],
+  ['Antalya', 'אנטליה', 'Türkiye', 96], ['Bodrum', 'בודרום', 'Türkiye', 128],
+  ['Izmir', 'איזמיר', 'Türkiye', 88], ['Fethiye', 'פתחיה', 'Türkiye', 94],
+  ['Pamukkale', 'פמוקקלה', 'Türkiye', 72], ['Ankara', 'אנקרה', 'Türkiye', 78],
+  ['Amman', 'עמאן', 'Jordan', 108], ['Petra', 'פטרה', 'Jordan', 132],
+  ['Aqaba', 'עקבה', 'Jordan', 118], ['Wadi Rum', 'ואדי רם', 'Jordan', 126],
+  ['Beirut', 'ביירות', 'Lebanon', 128],
+  // Gulf
+  ['Dubai', 'דובאי', 'United Arab Emirates', 198],
+  ['Abu Dhabi', 'אבו דאבי', 'United Arab Emirates', 176],
+  ['Ras Al Khaimah', 'ראס אל חיימה', 'United Arab Emirates', 148],
+  ['Doha', 'דוחא', 'Qatar', 168], ['Manama', 'מנאמה', 'Bahrain', 132],
+  ['Kuwait City', 'כווית סיטי', 'Kuwait', 138], ['Muscat', 'מסקט', 'Oman', 142],
+  ['Salalah', 'סלאלה', 'Oman', 118], ['Riyadh', 'ריאד', 'Saudi Arabia', 152],
+  ['Jeddah', 'ג׳דה', 'Saudi Arabia', 146], ['AlUla', 'אל-עולא', 'Saudi Arabia', 218],
+  // North Africa
+  ['Cairo', 'קהיר', 'Egypt', 88], ['Luxor', 'לוקסור', 'Egypt', 76],
+  ['Aswan', 'אסואן', 'Egypt', 72], ['Sharm el-Sheikh', 'שארם א-שייח׳', 'Egypt', 96],
+  ['Hurghada', 'הורגדה', 'Egypt', 82], ['Dahab', 'דהב', 'Egypt', 58],
+  ['Alexandria', 'אלכסנדריה', 'Egypt', 68], ['Marrakesh', 'מרקש', 'Morocco', 108],
+  ['Fes', 'פס', 'Morocco', 86], ['Chefchaouen', 'שפשאון', 'Morocco', 72],
+  ['Casablanca', 'קזבלנקה', 'Morocco', 98], ['Essaouira', 'אסאווירה', 'Morocco', 88],
+  ['Tangier', 'טנג׳יר', 'Morocco', 82], ['Merzouga', 'מרזוגה', 'Morocco', 96],
+  ['Agadir', 'אגאדיר', 'Morocco', 84], ['Tunis', 'תוניס', 'Tunisia', 72],
+  ['Djerba', 'ג׳רבה', 'Tunisia', 86], ['Hammamet', 'חמאמת', 'Tunisia', 78],
+  ['Algiers', 'אלג׳יר', 'Algeria', 76],
+  // Sub-Saharan Africa
+  ['Cape Town', 'קייפטאון', 'South Africa', 138], ['Johannesburg', 'יוהנסבורג', 'South Africa', 112],
+  ['Durban', 'דרבן', 'South Africa', 96], ['Stellenbosch', 'סטלנבוש', 'South Africa', 142],
+  ['Knysna', 'קניסנה', 'South Africa', 108], ['Kruger', 'קרוגר', 'South Africa', 218],
+  ['Port Elizabeth', 'פורט אליזבת', 'South Africa', 92],
+  ['Nairobi', 'ניירובי', 'Kenya', 108], ['Mombasa', 'מומבסה', 'Kenya', 96],
+  ['Maasai Mara', 'מסאי מארה', 'Kenya', 268], ['Diani Beach', 'חוף דיאני', 'Kenya', 118],
+  ['Zanzibar', 'זנזיבר', 'Tanzania', 124], ['Arusha', 'ארושה', 'Tanzania', 98],
+  ['Dar es Salaam', 'דאר א-סלאם', 'Tanzania', 86], ['Serengeti', 'סרנגטי', 'Tanzania', 286],
+  ['Addis Ababa', 'אדיס אבבה', 'Ethiopia', 78], ['Lalibela', 'לליבלה', 'Ethiopia', 68],
+  ['Kigali', 'קיגאלי', 'Rwanda', 96], ['Kampala', 'קמפלה', 'Uganda', 82],
+  ['Lagos', 'לאגוס', 'Nigeria', 118], ['Abuja', 'אבוג׳ה', 'Nigeria', 104],
+  ['Accra', 'אקרה', 'Ghana', 98], ['Cape Coast', 'קייפ קוסט', 'Ghana', 76],
+  ['Dakar', 'דקאר', 'Senegal', 92], ['Windhoek', 'ווינדהוק', 'Namibia', 96],
+  ['Swakopmund', 'סוואקופמונד', 'Namibia', 108], ['Sossusvlei', 'סוסוסוולי', 'Namibia', 196],
+  ['Port Louis', 'פורט לואי', 'Mauritius', 168], ['Livingstone', 'ליווינגסטון', 'Zambia', 128],
+  ['Victoria Falls', 'מפלי ויקטוריה', 'Zimbabwe', 146],
+]

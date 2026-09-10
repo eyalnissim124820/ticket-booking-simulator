@@ -1,50 +1,54 @@
 import { useMemo, useState } from 'react'
 import {
   AIRLINE_BY_CODE,
+  airlineName,
   buildSeatMap,
-  cabinLabel,
+  cabinKey,
   type FlightOffer,
 } from '../../data/flights'
 import type { Passenger } from '../../state/types'
 import { useStore } from '../../state/store'
 import { Modal, Steps } from '../../components/ui'
-import { clock, cx, duration, money, shortDate } from '../../lib/format'
-
-const STEPS = ['Review', 'Seats', 'Travellers', 'Payment']
+import { AirlineLogo } from '../../components/AirlineLogo'
+import { IconTicket } from '../../components/icons'
+import { clock, cx, duration, durationHe } from '../../lib/format'
+import { useI18n } from '../../i18n'
 
 const BAG_FEE = 45
 const INSURANCE_FEE = 29
 const FLEX_RATE = 0.12
 
 function OfferSummary({ offer, label }: { offer: FlightOffer; label: string }) {
+  const { locale, formatDate, plural } = useI18n()
   const airline = AIRLINE_BY_CODE.get(offer.airline)
   const first = offer.legs[0]
   const last = offer.legs[offer.legs.length - 1]
+  const dur = locale === 'he' ? durationHe : duration
   return (
-    <div className="card card-pad" style={{ background: 'var(--surface)' }}>
-      <div className="row-between" style={{ marginBottom: 8 }}>
+    <div className="card card-pad">
+      <div className="row-between" style={{ marginBottom: 10 }}>
         <span className="panel-title">{label}</span>
-        <span className="faint" style={{ fontSize: 12 }}>{shortDate(offer.departDate)}</span>
+        <span className="faint" style={{ fontSize: 12 }}>{formatDate(offer.departDate, 'short')}</span>
       </div>
-      <div className="row" style={{ gap: 8, marginBottom: 8 }}>
-        <span className="airline-dot" style={{ background: airline?.color }} />
-        <strong style={{ fontSize: 13 }}>{airline?.name}</strong>
-        <span className="faint mono" style={{ fontSize: 12 }}>
+      <div className="row" style={{ gap: 10, marginBottom: 12 }}>
+        {airline && <AirlineLogo mark={airline.mark} color={airline.color} size={22} />}
+        <strong style={{ fontSize: 13.5 }}>{airline && airlineName(airline, locale)}</strong>
+        <span className="faint mono" style={{ fontSize: 11.5 }}>
           {offer.legs.map((l) => l.flightNumber).join(' · ')}
         </span>
       </div>
       <div className="row-between">
         <div>
-          <div className="mono" style={{ fontSize: 18, fontWeight: 650 }}>{clock(first.departMinutes)}</div>
+          <div className="mono" style={{ fontSize: 19 }}>{clock(first.departMinutes)}</div>
           <div className="faint" style={{ fontSize: 11.5 }}>{first.from}</div>
         </div>
         <div className="faint" style={{ fontSize: 12, textAlign: 'center' }}>
-          {duration(offer.totalMinutes)}
+          {dur(offer.totalMinutes)}
           <br />
-          {offer.stops === 0 ? 'Direct' : `${offer.stops} stop${offer.stops > 1 ? 's' : ''}`}
+          {plural.stops(offer.stops)}
         </div>
-        <div style={{ textAlign: 'right' }}>
-          <div className="mono" style={{ fontSize: 18, fontWeight: 650 }}>
+        <div style={{ textAlign: 'end' }}>
+          <div className="mono" style={{ fontSize: 19 }}>
             {clock(last.arriveMinutes)}
             {offer.dayOffset > 0 && <span className="sup">+{offer.dayOffset}</span>}
           </div>
@@ -66,35 +70,26 @@ function SeatPicker({
   assignments: (string | null)[]
   onAssign: (index: number, seat: string | null) => void
 }) {
+  const { t, money } = useI18n()
   const rows = useMemo(() => buildSeatMap(offer.id, offer.cabin), [offer.id, offer.cabin])
   const [active, setActive] = useState(0)
-  const seatFeeOf = (seatId: string) =>
-    rows.flatMap((r) => r.seats).find((s) => s.id === seatId)?.fee ?? 0
+  const allSeats = useMemo(() => rows.flatMap((r) => r.seats), [rows])
+  const feeOf = (id: string) => allSeats.find((s) => s.id === id)?.fee ?? 0
 
   return (
     <div className="stack" style={{ gap: 14 }}>
       <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
         {Array.from({ length: passengers }, (_, i) => (
-          <button
-            key={i}
-            className="chip"
-            aria-pressed={active === i}
-            onClick={() => setActive(i)}
-          >
-            Traveller {i + 1}
-            {assignments[i] ? ` · ${assignments[i]}` : ' · pick a seat'}
+          <button key={i} className="chip" aria-pressed={active === i} onClick={() => setActive(i)}>
+            {t('flights.traveller', { n: i + 1 })} ·{' '}
+            {assignments[i] ?? t('flights.pickASeat')}
           </button>
         ))}
       </div>
 
       <div className="seatmap">
-        <div
-          className="faint"
-          style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}
-        >
-          ▲ Front of aircraft
-        </div>
-        <div style={{ maxHeight: 300, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div className="panel-title" style={{ marginBottom: 6 }}>{t('flights.seatFrontOfAircraft')}</div>
+        <div style={{ maxHeight: 302, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
           {rows.map((row) => (
             <div className="seat-row" key={row.row}>
               <span className="seat-row-num">{row.row}</span>
@@ -109,11 +104,7 @@ function SeatPicker({
                       assignments.includes(seat.id) && 'picked',
                     )}
                     disabled={seat.taken}
-                    title={
-                      seat.taken
-                        ? 'Occupied'
-                        : `${seat.id}${seat.fee ? ` · +${money(seat.fee)}` : ' · free'}`
-                    }
+                    title={seat.taken ? t('flights.seatOccupied') : `${seat.id} · ${money(seat.fee)}`}
                     onClick={() => {
                       const alreadyAt = assignments.indexOf(seat.id)
                       if (alreadyAt >= 0) {
@@ -131,21 +122,20 @@ function SeatPicker({
             </div>
           ))}
         </div>
-        <div className="seat-legend" style={{ marginTop: 10 }}>
-          <span><i style={{ background: 'var(--surface-2)', border: '1px solid var(--line)' }} />Available</span>
-          <span><i style={{ background: 'var(--surface)', border: '1px solid var(--line-soft)' }} />Occupied</span>
-          <span><i style={{ background: 'transparent', border: '1px solid rgba(251,191,36,.5)' }} />Extra legroom · {money(38)}</span>
-          <span><i style={{ background: 'var(--accent)' }} />Your seat</span>
+        <div className="seat-legend" style={{ marginTop: 12 }}>
+          <span><i style={{ background: 'var(--card)', border: '1px solid var(--rule-strong)' }} />{t('flights.seatAvailable')}</span>
+          <span><i style={{ background: 'var(--tint)' }} />{t('flights.seatOccupied')}</span>
+          <span><i style={{ border: '1px solid var(--accent)' }} />{t('flights.seatLegroom', { amount: money(38) })}</span>
+          <span><i style={{ background: 'var(--brand)' }} />{t('flights.seatYours')}</span>
         </div>
       </div>
 
-      <div className="faint" style={{ fontSize: 12.5 }}>
-        Seat fees so far:{' '}
-        <strong className="mono">
-          {money(assignments.reduce((sum, s) => sum + (s ? seatFeeOf(s) : 0), 0))}
-        </strong>
-        . Seats are optional — skip to have them assigned at check-in.
-      </div>
+      <p className="faint" style={{ fontSize: 12.5 }}>
+        {t('flights.seatFeesSoFar', {
+          amount: money(assignments.reduce((sum, s) => sum + (s ? feeOf(s) : 0), 0)),
+        })}{' '}
+        {t('flights.seatsOptional')}
+      </p>
     </div>
   )
 }
@@ -161,21 +151,19 @@ export function BookingFlow({
   passengerCount: number
   onClose: () => void
 }) {
+  const { t, money, formatDate, plural, arrow } = useI18n()
   const { state, dispatch, notify } = useStore()
   const [step, setStep] = useState(0)
   const [seats, setSeats] = useState<(string | null)[]>(Array(passengerCount).fill(null))
   const [people, setPeople] = useState<Passenger[]>(
-    Array.from({ length: passengerCount }, () => ({
-      firstName: '',
-      lastName: '',
-      email: '',
-      seat: null,
-    })),
+    Array.from({ length: passengerCount }, () => ({ firstName: '', lastName: '', email: '', seat: null })),
   )
   const [bags, setBags] = useState(0)
   const [insurance, setInsurance] = useState(false)
   const [flexible, setFlexible] = useState(false)
-  const [confirmation, setConfirmation] = useState<string | null>(null)
+  const [done, setDone] = useState(false)
+
+  const STEPS = [t('common.review'), t('flights.stepSeats'), t('flights.stepTravellers'), t('common.payment')]
 
   const seatRows = useMemo(() => buildSeatMap(outbound.id, outbound.cabin), [outbound.id, outbound.cabin])
   const seatFees = useMemo(() => {
@@ -198,9 +186,11 @@ export function BookingFlow({
   const updatePerson = (index: number, patch: Partial<Passenger>) =>
     setPeople((prev) => prev.map((p, i) => (i === index ? { ...p, ...patch } : p)))
 
+  const route = `${outbound.legs[0].from} ${arrow} ${outbound.legs.at(-1)!.to}`
+
   const confirm = () => {
     if (!affordable) {
-      notify({ tone: 'error', title: 'Not enough cash', body: 'Add funds from the wallet menu.' })
+      notify({ tone: 'error', title: t('flights.notEnoughCash'), body: t('flights.notEnoughCashBody') })
       return
     }
     dispatch({
@@ -215,40 +205,39 @@ export function BookingFlow({
         total,
       },
     })
-    const reference = `SKY-${outbound.id.slice(-4).toUpperCase()}`
-    setConfirmation(reference)
-    notify({
-      tone: 'success',
-      title: 'Flight booked',
-      body: `${money(total)} charged · ${outbound.legs[0].from} → ${outbound.legs.at(-1)!.to}`,
-    })
+    setDone(true)
+    notify({ tone: 'success', title: t('flights.bookedToast'), body: `${money(total)} · ${route}` })
   }
 
-  if (confirmation) {
+  if (done) {
     return (
-      <Modal open title="Booking confirmed" onClose={onClose} size="narrow"
-        footer={<button className="btn btn-primary btn-block" onClick={onClose}>Done</button>}>
-        <div style={{ textAlign: 'center', display: 'grid', gap: 12, padding: '12px 0' }}>
-          <div style={{ fontSize: 44 }}>🎫</div>
-          <h3 style={{ fontSize: 20 }}>You're flying.</h3>
+      <Modal
+        open
+        size="narrow"
+        title={t('flights.bookedTitle')}
+        onClose={onClose}
+        footer={<button className="btn btn-primary btn-block" onClick={onClose}>{t('common.done')}</button>}
+      >
+        <div style={{ textAlign: 'center', display: 'grid', gap: 14, padding: '8px 0', justifyItems: 'center' }}>
+          <IconTicket size={40} style={{ color: 'var(--brand)' }} />
+          <h3 style={{ fontSize: 22 }}>{t('flights.bookedHeadline')}</h3>
           <p className="muted">
-            {outbound.legs[0].from} → {outbound.legs.at(-1)!.to}
-            {inbound && ' and back'} on {shortDate(outbound.departDate)}.
+            {t('flights.bookedBody', {
+              route: route + (inbound ? t('flights.andBack') : ''),
+              date: formatDate(outbound.departDate, 'short'),
+            })}
           </p>
-          <div className="order-summary" style={{ textAlign: 'left' }}>
-            <div className="row-between"><span className="muted">Travellers</span><strong>{passengerCount}</strong></div>
-            <div className="row-between"><span className="muted">Cabin</span><strong>{cabinLabel(outbound.cabin)}</strong></div>
-            <div className="row-between"><span className="muted">Seats</span>
-              <strong className="mono">{seats.filter(Boolean).join(', ') || 'At check-in'}</strong>
+          <div className="order-summary" style={{ textAlign: 'start', width: '100%' }}>
+            <div className="row-between"><span className="muted">{t('flights.travellers')}</span><strong>{plural.travellers(passengerCount)}</strong></div>
+            <div className="row-between"><span className="muted">{t('flights.cabin')}</span><strong>{t(cabinKey(outbound.cabin))}</strong></div>
+            <div className="row-between">
+              <span className="muted">{t('flights.seats')}</span>
+              <strong className="mono">{seats.filter(Boolean).join(', ') || t('flights.atCheckIn')}</strong>
             </div>
             <hr className="divider" />
-            <div className="row-between"><span className="muted">Charged</span>
-              <strong className="mono">{money(total)}</strong>
-            </div>
+            <div className="row-between"><span className="muted">{t('flights.charged')}</span><strong className="mono">{money(total)}</strong></div>
           </div>
-          <p className="faint" style={{ fontSize: 12 }}>
-            Find it any time under <strong>My trips</strong>.
-          </p>
+          <p className="faint" style={{ fontSize: 12.5 }}>{t('flights.findItUnder')}</p>
         </div>
       </Modal>
     )
@@ -258,32 +247,25 @@ export function BookingFlow({
     <Modal
       open
       size="wide"
-      title="Complete your booking"
+      title={t('flights.completeBooking')}
       subtitle={<Steps steps={STEPS} current={step} />}
       onClose={onClose}
       footer={
         <>
-          <button
-            className="btn"
-            onClick={() => (step === 0 ? onClose() : setStep((s) => s - 1))}
-          >
-            {step === 0 ? 'Cancel' : 'Back'}
+          <button className="btn" onClick={() => (step === 0 ? onClose() : setStep((s) => s - 1))}>
+            {step === 0 ? t('common.cancel') : t('common.back')}
           </button>
-          <div className="grow" style={{ textAlign: 'right' }}>
-            <div className="faint" style={{ fontSize: 11 }}>Total</div>
+          <div className="grow" style={{ textAlign: 'end' }}>
+            <div className="faint" style={{ fontSize: 11 }}>{t('common.total')}</div>
             <strong className="mono" style={{ fontSize: 18 }}>{money(total)}</strong>
           </div>
           {step < STEPS.length - 1 ? (
-            <button
-              className="btn btn-primary btn-lg"
-              disabled={step === 2 && !detailsComplete}
-              onClick={() => setStep((s) => s + 1)}
-            >
-              Continue
+            <button className="btn btn-primary btn-lg" disabled={step === 2 && !detailsComplete} onClick={() => setStep((s) => s + 1)}>
+              {t('common.continue')}
             </button>
           ) : (
             <button className="btn btn-primary btn-lg" onClick={confirm} disabled={!affordable}>
-              {affordable ? `Pay ${money(total)}` : 'Insufficient funds'}
+              {affordable ? t('common.pay', { amount: money(total) }) : t('common.insufficient')}
             </button>
           )}
         </>
@@ -291,30 +273,21 @@ export function BookingFlow({
     >
       {step === 0 && (
         <div className="stack" style={{ gap: 14 }}>
-          <OfferSummary offer={outbound} label="Outbound" />
-          {inbound && <OfferSummary offer={inbound} label="Return" />}
+          <OfferSummary offer={outbound} label={t('flights.outbound')} />
+          {inbound && <OfferSummary offer={inbound} label={t('flights.return')} />}
           <div className="order-summary">
             <div className="row-between">
-              <span className="muted">
-                Fare × {passengerCount} traveller{passengerCount > 1 ? 's' : ''}
-              </span>
+              <span className="muted">{t('flights.fareTimes', { count: plural.travellers(passengerCount) })}</span>
               <span className="mono">{money(fareTotal)}</span>
             </div>
-            <div className="row-between">
-              <span className="muted">Taxes & carrier charges</span>
-              <span className="mono">{money(taxes)}</span>
-            </div>
+            <div className="row-between"><span className="muted">{t('common.taxesFees')}</span><span className="mono">{money(taxes)}</span></div>
           </div>
         </div>
       )}
 
       {step === 1 && (
         <>
-          {inbound && (
-            <p className="faint" style={{ fontSize: 12.5 }}>
-              These seats are for the outbound flight. Return seats are assigned at check-in.
-            </p>
-          )}
+          {inbound && <p className="faint" style={{ fontSize: 12.5 }}>{t('flights.seatOutboundOnly')}</p>}
           <SeatPicker
             offer={outbound}
             passengers={passengerCount}
@@ -328,58 +301,38 @@ export function BookingFlow({
         <div className="stack" style={{ gap: 14 }}>
           {people.map((person, i) => (
             <div key={i} className="card card-pad">
-              <div className="row-between" style={{ marginBottom: 10 }}>
-                <span className="panel-title">Traveller {i + 1}</span>
-                {seats[i] && <span className="pill pill-accent">Seat {seats[i]}</span>}
+              <div className="row-between" style={{ marginBottom: 12 }}>
+                <span className="panel-title">{t('flights.traveller', { n: i + 1 })}</span>
+                {seats[i] && <span className="pill pill-brand">{t('flights.seatN', { seat: seats[i]! })}</span>}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div className="field">
-                  <label>First name</label>
-                  <input
-                    className="input"
-                    value={person.firstName}
-                    placeholder="Alex"
-                    onChange={(e) => updatePerson(i, { firstName: e.target.value })}
-                  />
+                  <label>{t('common.firstName')}</label>
+                  <input className="input" value={person.firstName} onChange={(e) => updatePerson(i, { firstName: e.target.value })} />
                 </div>
                 <div className="field">
-                  <label>Last name</label>
-                  <input
-                    className="input"
-                    value={person.lastName}
-                    placeholder="Moreau"
-                    onChange={(e) => updatePerson(i, { lastName: e.target.value })}
-                  />
+                  <label>{t('common.lastName')}</label>
+                  <input className="input" value={person.lastName} onChange={(e) => updatePerson(i, { lastName: e.target.value })} />
                 </div>
                 <div className="field" style={{ gridColumn: '1 / -1' }}>
-                  <label>Email for the itinerary</label>
-                  <input
-                    className="input"
-                    type="email"
-                    value={person.email}
-                    placeholder="alex@example.com"
-                    onChange={(e) => updatePerson(i, { email: e.target.value })}
-                  />
+                  <label>{t('common.email')}</label>
+                  <input className="input" type="email" dir="ltr" value={person.email} onChange={(e) => updatePerson(i, { email: e.target.value })} />
                 </div>
               </div>
             </div>
           ))}
-          {!detailsComplete && (
-            <p className="faint" style={{ fontSize: 12.5 }}>
-              Fill in every traveller (a valid email included) to continue.
-            </p>
-          )}
+          {!detailsComplete && <p className="faint" style={{ fontSize: 12.5 }}>{t('flights.fillEveryTraveller')}</p>}
         </div>
       )}
 
       {step === 3 && (
         <div className="stack" style={{ gap: 14 }}>
-          <div className="card card-pad stack" style={{ gap: 12 }}>
-            <span className="panel-title">Extras</span>
+          <div className="card card-pad stack" style={{ gap: 14 }}>
+            <span className="panel-title">{t('flights.extras')}</span>
             <div className="row-between">
               <div>
-                <strong>Checked bags</strong>
-                <div className="faint" style={{ fontSize: 12 }}>{money(BAG_FEE)} each, up to 23 kg</div>
+                <strong>{t('flights.checkedBags')}</strong>
+                <div className="faint" style={{ fontSize: 12.5 }}>{t('flights.checkedBagsBody', { amount: money(BAG_FEE) })}</div>
               </div>
               <div className="row" style={{ gap: 6 }}>
                 <button className="btn btn-sm" onClick={() => setBags((b) => Math.max(0, b - 1))} disabled={bags === 0}>−</button>
@@ -390,48 +343,40 @@ export function BookingFlow({
             <hr className="divider" />
             <label className="row-between" style={{ cursor: 'pointer' }}>
               <div>
-                <strong>Travel insurance</strong>
-                <div className="faint" style={{ fontSize: 12 }}>
-                  {money(INSURANCE_FEE)} per traveller · medical and delay cover
-                </div>
+                <strong>{t('flights.insurance')}</strong>
+                <div className="faint" style={{ fontSize: 12.5 }}>{t('flights.insuranceBody', { amount: money(INSURANCE_FEE) })}</div>
               </div>
-              <input type="checkbox" checked={insurance} onChange={(e) => setInsurance(e.target.checked)} style={{ width: 17, height: 17, accentColor: 'var(--accent-strong)' }} />
+              <input type="checkbox" checked={insurance} onChange={(e) => setInsurance(e.target.checked)} style={{ width: 17, height: 17, accentColor: 'var(--brand)' }} />
             </label>
             <hr className="divider" />
             <label className="row-between" style={{ cursor: 'pointer' }}>
               <div>
-                <strong>Flexible fare</strong>
-                <div className="faint" style={{ fontSize: 12 }}>
-                  +12% · cancel any time for a full refund
-                </div>
+                <strong>{t('flights.flexible')}</strong>
+                <div className="faint" style={{ fontSize: 12.5 }}>{t('flights.flexibleBody')}</div>
               </div>
-              <input type="checkbox" checked={flexible} onChange={(e) => setFlexible(e.target.checked)} style={{ width: 17, height: 17, accentColor: 'var(--accent-strong)' }} />
+              <input type="checkbox" checked={flexible} onChange={(e) => setFlexible(e.target.checked)} style={{ width: 17, height: 17, accentColor: 'var(--brand)' }} />
             </label>
           </div>
 
           <div className="order-summary">
-            <div className="row-between"><span className="muted">Fare × {passengerCount}</span><span className="mono">{money(fareTotal)}</span></div>
-            <div className="row-between"><span className="muted">Taxes & charges</span><span className="mono">{money(taxes)}</span></div>
-            {seatFees > 0 && <div className="row-between"><span className="muted">Seat selection</span><span className="mono">{money(seatFees)}</span></div>}
-            {bagTotal > 0 && <div className="row-between"><span className="muted">Checked bags × {bags}</span><span className="mono">{money(bagTotal)}</span></div>}
-            {insuranceTotal > 0 && <div className="row-between"><span className="muted">Insurance</span><span className="mono">{money(insuranceTotal)}</span></div>}
-            {flexTotal > 0 && <div className="row-between"><span className="muted">Flexible fare</span><span className="mono">{money(flexTotal)}</span></div>}
+            <div className="row-between"><span className="muted">{t('flights.fareTimes', { count: plural.travellers(passengerCount) })}</span><span className="mono">{money(fareTotal)}</span></div>
+            <div className="row-between"><span className="muted">{t('common.taxesFees')}</span><span className="mono">{money(taxes)}</span></div>
+            {seatFees > 0 && <div className="row-between"><span className="muted">{t('flights.seatSelection')}</span><span className="mono">{money(seatFees)}</span></div>}
+            {bagTotal > 0 && <div className="row-between"><span className="muted">{t('flights.bagsTimes', { count: bags })}</span><span className="mono">{money(bagTotal)}</span></div>}
+            {insuranceTotal > 0 && <div className="row-between"><span className="muted">{t('flights.insurance')}</span><span className="mono">{money(insuranceTotal)}</span></div>}
+            {flexTotal > 0 && <div className="row-between"><span className="muted">{t('flights.flexible')}</span><span className="mono">{money(flexTotal)}</span></div>}
             <hr className="divider" />
             <div className="row-between">
-              <strong>Total due</strong>
+              <strong>{t('common.totalDue')}</strong>
               <strong className="mono" style={{ fontSize: 17 }}>{money(total)}</strong>
             </div>
-            <div className="row-between faint" style={{ fontSize: 12 }}>
-              <span>Wallet balance</span>
+            <div className="row-between faint" style={{ fontSize: 12.5 }}>
+              <span>{t('common.walletBalance')}</span>
               <span className={cx('mono', !affordable && 'down')}>{money(state.cash)}</span>
             </div>
           </div>
 
-          {!affordable && (
-            <p className="down" style={{ fontSize: 13 }}>
-              This booking exceeds your wallet balance. Top up from the wallet menu in the header.
-            </p>
-          )}
+          {!affordable && <p className="down" style={{ fontSize: 13 }}>{t('flights.overBalance')}</p>}
         </div>
       )}
     </Modal>
