@@ -9,7 +9,7 @@ import {
 import { Modal, Stars } from '../../components/ui'
 import { AMENITY_ICONS, IconHeart, IconMapPin } from '../../components/icons'
 import { cx, nightsBetween } from '../../lib/format'
-import { PropertyArt } from './PropertyArt'
+import { StayImage } from './StayImage'
 import { useStore } from '../../state/store'
 import { useI18n } from '../../i18n'
 
@@ -69,7 +69,13 @@ export function PropertyDetail({
       <div className="gallery">
         {[0, 1, 2, 3, 4].map((i) => (
           <figure key={i}>
-            <PropertyArt seed={property.artSeed} variant={i} />
+            <StayImage
+              seed={property.artSeed}
+              variant={i}
+              width={i === 0 ? 900 : 500}
+              eager={i === 0}
+              alt={pairText(property.name, locale)}
+            />
           </figure>
         ))}
       </div>

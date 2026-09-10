@@ -7,7 +7,7 @@ import { MarketsTab } from './features/markets/MarketsTab'
 import { BrandMark, Modal, Ornament } from './components/ui'
 import {
   CompletionModal,
-  SessionClock,
+  SessionNotch,
   StartGate,
   useObjectiveToasts,
 } from './features/session/Session'
@@ -181,7 +181,8 @@ function Shell() {
   }
 
   return (
-    <div className="app">
+    <div className={cx('app', state.session.status !== 'idle' && 'has-notch')}>
+      <SessionNotch />
       <header className="topbar">
         <div className="brand">
           <BrandMark />
@@ -203,7 +204,6 @@ function Shell() {
 
         <div className="topbar-right">
           <LanguageToggle />
-          <SessionClock />
           <Wallet />
         </div>
       </header>

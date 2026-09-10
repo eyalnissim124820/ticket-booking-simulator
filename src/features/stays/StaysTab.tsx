@@ -29,7 +29,7 @@ import {
 import { AMENITY_ICONS, IconBed, IconHeart, IconSearch } from '../../components/icons'
 import { PropertyDetail } from './PropertyDetail'
 import { StayBookingFlow } from './StayBookingFlow'
-import { PropertyArt } from './PropertyArt'
+import { StayImage } from './StayImage'
 import { addDays, cx, nightsBetween, todayIso } from '../../lib/format'
 import { useI18n } from '../../i18n'
 
@@ -65,7 +65,7 @@ function PropertyCard({
   return (
     <article className="card stay-card" onClick={onOpen}>
       <div className="stay-photo">
-        <PropertyArt seed={property.artSeed} />
+        <StayImage seed={property.artSeed} width={640} alt={pairText(property.name, locale)} />
         <button
           className="save"
           aria-label={saved ? t('stays.unsavedToast') : t('common.save')}
@@ -274,7 +274,11 @@ export function StaysTab() {
                 }}
               >
                 <div className="stay-photo">
-                  <PropertyArt seed={d.city.length * 977 + d.basePrice} />
+                  <StayImage
+                    seed={d.city.length * 977 + d.basePrice}
+                    width={640}
+                    alt={destinationCity(d, locale)}
+                  />
                 </div>
                 <div className="stay-body">
                   <strong style={{ fontSize: 15 }}>{destinationCity(d, locale)}</strong>

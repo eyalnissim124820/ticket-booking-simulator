@@ -54,9 +54,9 @@ A run clears when you have completed one task on each desk:
 | Buy a stock | Markets |
 | Sell a stock | Markets |
 
-While a run is live the header carries a ticking clock and an objective counter
-(`Time 02:14 · Goals 3/4`) next to the wallet, and each objective raises a toast as it
-clears. When the last one clears the clock freezes and a result card reports the **time
+While a run is live a notch hangs from the top centre of the screen — a dark island with
+concave shoulders, a lens dot, the elapsed clock and the objective counter — and each
+objective raises a toast as it clears. The lens lights green when the run closes. When the last one clears the clock freezes and a result card reports the **time
 taken**, **total spent**, **total earned**, **final net worth** and **net result** — the
 numbers you would rank runs by.
 
@@ -129,8 +129,24 @@ result lists, a page-level fade-up between tabs, an animated stroke-draw on the 
 chart, and flat colour flashes on ticking quotes. All of it collapses under
 `prefers-reduced-motion`.
 
-### Mock images
-Two generated sets, both inline SVG — nothing is fetched:
+### Listing photography
+Stay listings use hotel-room photographs from [Unsplash](https://unsplash.com/s/photos/hotel-rooms),
+served straight from the Unsplash image CDN — no API key and no SDK, just URLs. The
+Unsplash License allows free use, including commercially, without attribution. The photo
+ids live in one file, `src/data/stayPhotos.ts`, and are assigned to properties
+deterministically by seed, so a listing always shows the same room.
+
+```bash
+npm run check:photos   # HEADs every id and prints any that no longer resolve
+```
+
+Every image degrades to generated artwork rather than leaving a hole: the seeded
+illustration renders underneath as the loading state, the photograph fades over it once
+decoded, and a failed load (offline, blocked CDN, retired id) simply keeps the
+illustration. Card and gallery dimensions are identical either way.
+
+### Generated artwork
+Both fallback sets are inline SVG — nothing is fetched:
 
 - **Listing artwork** (`src/features/stays/PropertyArt.tsx`) draws a flat vector
   architectural scene per property — one of five compositions (coastal, townhouse, tower,
@@ -139,8 +155,8 @@ Two generated sets, both inline SVG — nothing is fetched:
 - **Carrier logos** (`src/components/AirlineLogo.tsx`) are seven distinct geometric marks
   (chevron, arc, star, delta, wave, sun, crown), one per airline.
 
-If you would rather swap in bitmap artwork, `docs/IMAGE_PROMPTS.md` has ready-to-paste
-batch prompts for generating both sets.
+`docs/IMAGE_PROMPTS.md` has ready-to-paste batch prompts if you would rather generate
+bitmap artwork for either set instead.
 
 ## Structure
 

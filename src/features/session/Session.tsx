@@ -10,6 +10,7 @@ import {
   IconCheck,
   IconClock,
   IconPlane,
+  IconTarget,
 } from '../../components/icons'
 import { cx } from '../../lib/format'
 import { useI18n } from '../../i18n'
@@ -129,8 +130,9 @@ export function StartGate({ languageToggle }: { languageToggle: ReactNode }) {
   )
 }
 
-/** Live clock and objective counter, sitting beside the wallet. */
-export function SessionClock() {
+/** The run status, shown as a notch hanging from the top edge of the screen.
+ *  Icons rather than labels keep it compact and identical in both languages. */
+export function SessionNotch() {
   const { t } = useI18n()
   const { state } = useStore()
   const { session } = state
@@ -138,19 +140,24 @@ export function SessionClock() {
 
   if (session.status === 'idle') return null
   const done = OBJECTIVE_KEYS.filter((key) => session.objectives[key]).length
+  const complete = session.status === 'complete'
 
   return (
-    <div className={cx('session-clock', session.status === 'complete' && 'finished')}>
-      <span className="session-clock-item">
-        <span>{t('session.elapsedLabel')}</span>
-        <strong className="mono row" style={{ gap: 5 }}>
-          <IconClock size={13} />
-          {formatElapsed(elapsed)}
-        </strong>
+    <div
+      className={cx('notch', complete && 'complete')}
+      role="status"
+      aria-label={`${t('session.elapsedLabel')} ${formatElapsed(elapsed)} · ${t('session.progressLabel')} ${done}/${OBJECTIVE_KEYS.length}`}
+    >
+      {/* stands in for the camera on a real notch — it lights up when the run closes */}
+      <span className="notch-lens" aria-hidden="true" />
+      <span className="notch-metric" title={t('session.elapsedLabel')}>
+        <IconClock size={12} />
+        <span className="mono">{formatElapsed(elapsed)}</span>
       </span>
-      <span className="session-clock-item">
-        <span>{t('session.progressLabel')}</span>
-        <strong className="mono">{t('session.progress', { done, total: OBJECTIVE_KEYS.length })}</strong>
+      <span className="notch-sep" aria-hidden="true" />
+      <span className="notch-metric" title={t('session.progressLabel')}>
+        {complete ? <IconCheck size={12} /> : <IconTarget size={12} />}
+        <span className="mono">{done}/{OBJECTIVE_KEYS.length}</span>
       </span>
     </div>
   )
