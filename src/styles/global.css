@@ -53,7 +53,13 @@
 }
 
 * { box-sizing: border-box; }
-html, body, #root { height: 100%; }
+
+/* Height is deliberately content-driven rather than `height: 100%`: pinning the
+   root to the viewport makes `overflow: hidden` collapse the scrollable area, so
+   freezing the page behind a modal would throw away the reading position.
+   `scrollbar-gutter` keeps the gutter reserved so the freeze never shifts things. */
+html { scrollbar-gutter: stable; }
+body { min-height: 100vh; }
 
 body {
   margin: 0;
@@ -92,7 +98,7 @@ a { color: var(--brand); text-underline-offset: 3px; }
 :focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 2px; }
 
 /* ------------------------------------------------------------------ shell -- */
-.app { min-height: 100%; display: flex; flex-direction: column; }
+.app { min-height: 100vh; display: flex; flex-direction: column; }
 
 .topbar {
   position: sticky; inset-block-start: 0; z-index: 40;
@@ -160,7 +166,7 @@ a { color: var(--brand); text-underline-offset: 3px; }
 
 .main { flex: 1; width: min(1360px, 100%); margin-inline: auto; padding: 26px 26px 80px; }
 
-.page-enter { animation: pageIn 0.34s cubic-bezier(0.2, 0.7, 0.3, 1) both; }
+.page-enter { animation: pageIn 0.34s cubic-bezier(0.2, 0.7, 0.3, 1) backwards; }
 @keyframes pageIn { from { opacity: 0; transform: translateY(8px); } }
 
 /* ------------------------------------------------------------- primitives -- */
@@ -282,7 +288,7 @@ input[type='number'] { font-family: var(--mono); }
 .loader-dots i:nth-child(2) { animation-delay: 0.16s; }
 .loader-dots i:nth-child(3) { animation-delay: 0.32s; }
 
-.stagger > * { animation: riseIn 0.4s cubic-bezier(0.2, 0.7, 0.3, 1) both; }
+.stagger > * { animation: riseIn 0.4s cubic-bezier(0.2, 0.7, 0.3, 1) backwards; }
 .stagger > *:nth-child(1) { animation-delay: 0.02s; }
 .stagger > *:nth-child(2) { animation-delay: 0.06s; }
 .stagger > *:nth-child(3) { animation-delay: 0.1s; }
@@ -309,6 +315,9 @@ input[type='number'] { font-family: var(--mono); }
 .search-grid { display: grid; gap: 12px; align-items: end; }
 
 .results-layout { display: grid; grid-template-columns: 244px 1fr; gap: 22px; align-items: start; margin-block-start: 22px; }
+/* Grid children default to min-width:auto and refuse to shrink below their
+   content, which pushes the page wider than the screen on narrow viewports. */
+.results-layout > *, .markets-layout > * { min-width: 0; }
 .filters { position: sticky; inset-block-start: 88px; display: flex; flex-direction: column; gap: 18px; padding: 18px; }
 .filter-group { display: flex; flex-direction: column; gap: 9px; }
 .checkline { display: flex; align-items: center; gap: 9px; cursor: pointer; color: var(--ink-2); font-size: 14px; }
@@ -572,6 +581,63 @@ input[type='range'] { width: 100%; accent-color: var(--brand); cursor: pointer; 
 .toast.info .toast-icon { color: var(--brand); }
 @keyframes toastIn { from { opacity: 0; transform: translateY(10px); } }
 
+
+/* ------------------------------------------------------------------ session */
+.session-clock {
+  display: flex; align-items: stretch; border: 1px solid var(--rule-strong);
+  background: var(--card); border-radius: var(--radius); overflow: hidden;
+}
+.session-clock.finished { border-color: var(--brand); background: var(--brand-soft); }
+.session-clock-item { display: flex; flex-direction: column; line-height: 1.25; padding: 7px 14px; }
+.session-clock-item + .session-clock-item { border-inline-start: 1px solid var(--rule); }
+.session-clock-item > span {
+  font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--ink-3); font-weight: 700;
+}
+:root[lang='he'] .session-clock-item > span { letter-spacing: 0.04em; }
+.session-clock-item strong { font-size: 14px; font-family: var(--mono); font-weight: 500; }
+
+.gate {
+  position: fixed; inset: 0; z-index: 300; overflow-y: auto;
+  background: var(--paper);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22'%3E%3Ccircle cx='1' cy='1' r='1' fill='%231c1a17' fill-opacity='0.06'/%3E%3C/svg%3E");
+  display: grid; place-items: center; padding: 32px 24px;
+  animation: fade 0.3s ease-out;
+}
+.gate-panel {
+  position: relative; display: grid; justify-items: center; gap: 16px; text-align: center;
+  background: var(--card); border: 1px solid var(--rule-strong); border-radius: var(--radius);
+  padding: 44px 40px 36px; width: min(560px, 100%); box-shadow: var(--shadow);
+  animation: riseIn 0.4s cubic-bezier(0.2, 0.7, 0.3, 1) backwards;
+}
+.gate-lang { position: absolute; inset-block-start: 14px; inset-inline-end: 14px; }
+.gate-title { font-size: 34px; letter-spacing: -0.02em; }
+.gate-objectives {
+  width: 100%; text-align: start; display: grid; gap: 10px;
+  padding: 16px; background: var(--sunk); border-radius: var(--radius);
+}
+
+.objective-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; width: 100%; }
+.objective { display: flex; align-items: center; gap: 10px; text-align: start; font-size: 14px; }
+.objective-mark {
+  width: 24px; height: 24px; border-radius: 50%; flex: none; display: grid; place-items: center;
+  border: 1px solid var(--rule-strong); color: var(--ink-3); background: var(--card);
+  transition: all var(--tap);
+}
+.objective.done .objective-mark { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); }
+.objective.done strong { color: var(--ink); }
+.objective.done { color: var(--ink-2); }
+
+.result-time {
+  font-size: 46px; font-weight: 500; letter-spacing: -0.03em; line-height: 1;
+  color: var(--brand);
+}
+
+@media (max-width: 900px) {
+  .gate-panel { padding: 40px 22px 30px; }
+  .gate-title { font-size: 27px; }
+}
+
 /* -------------------------------------------------------------- responsive */
 @media (max-width: 1180px) {
   .markets-layout { grid-template-columns: 236px 1fr; }
@@ -579,9 +645,17 @@ input[type='range'] { width: 100%; accent-color: var(--brand); cursor: pointer; 
 }
 @media (max-width: 900px) {
   .topbar { min-height: auto; flex-wrap: wrap; padding: 10px 16px; gap: 12px; }
-  .topbar-right { width: 100%; }
-  .wallet { flex: 1; }
-  .wallet-item { flex: 1; }
+  /* Language + clock share the first row, the wallet takes the second, so the
+     header never forces the document wider than the screen. */
+  .topbar-right {
+    width: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr);
+    gap: 8px; align-items: stretch;
+  }
+  .lang-toggle { grid-row: 1; }
+  .session-clock { grid-row: 1; min-width: 0; }
+  .wallet { grid-column: 1 / -1; }
+  .wallet-item, .session-clock-item { flex: 1; min-width: 0; padding: 6px 10px; }
+  .wallet-item strong, .session-clock-item strong { font-size: 13px; }
   .main { padding: 18px 14px 64px; }
   .results-layout { grid-template-columns: 1fr; }
   .filters { position: static; }

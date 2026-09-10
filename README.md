@@ -39,6 +39,31 @@ products actually use (`תיירים` for economy, `לימיט` for limit orders
 (`לילה אחד` · `שני לילות` · `5 לילות`). English is the typed source of truth for the
 message catalogue, so a missing Hebrew key fails the build rather than the page.
 
+## The timed simulation
+
+The app opens on a **Start simulation** gate. Pressing it starts the clock and resets the
+wallet to the opening balance, so every run begins from the same slate and times and
+results are comparable between players.
+
+A run clears when you have completed one task on each desk:
+
+| Objective | Desk |
+| --- | --- |
+| Book a flight | Flights |
+| Book a stay | Stays |
+| Buy a stock | Markets |
+| Sell a stock | Markets |
+
+While a run is live the header carries a ticking clock and an objective counter
+(`Time 02:14 · Goals 3/4`) next to the wallet, and each objective raises a toast as it
+clears. When the last one clears the clock freezes and a result card reports the **time
+taken**, **total spent**, **total earned**, **final net worth** and **net result** — the
+numbers you would rank runs by.
+
+Spending, earnings and time stop recording at completion, so continuing to use the app
+afterwards cannot change a recorded result. **Run it again** resets to a fresh slate and a
+new clock.
+
 ## The three tabs
 
 ### Flights
@@ -123,11 +148,15 @@ batch prompts for generating both sets.
 src/
   i18n/        typed message catalogue (en is the source of truth), plurals, RTL, currency
   data/        seeded generators — airports, flights, 831 destinations, hotels, instruments
-  state/       reducer store, localStorage persistence, live quote feed, portfolio maths
-  features/    flights/ · stays/ · markets/
+  state/       reducer store, session/objectives, persistence, quote feed, portfolio maths
+  features/    flights/ · stays/ · markets/ · session/
   components/  icons, airline logos, modal, autocomplete, date picker, loaders
   lib/         PRNG helpers and locale-independent formatting
   styles/      design tokens and layout
 ```
+
+Overlays are portalled to `<body>` and freeze the page behind them: `position: fixed` is
+only viewport-relative when no ancestor establishes a containing block, and a stray
+`transform` anywhere above would otherwise re-anchor a modal mid-page.
 
 React 18 + TypeScript + Vite. No UI, icon or charting dependencies.

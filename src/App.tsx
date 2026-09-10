@@ -6,6 +6,12 @@ import { StaysTab } from './features/stays/StaysTab'
 import { MarketsTab } from './features/markets/MarketsTab'
 import { BrandMark, Modal, Ornament } from './components/ui'
 import {
+  CompletionModal,
+  SessionClock,
+  StartGate,
+  useObjectiveToasts,
+} from './features/session/Session'
+import {
   IconAlert,
   IconBed,
   IconChart,
@@ -149,6 +155,7 @@ function Toasts() {
 function Shell() {
   const { t } = useI18n()
   const { state } = useStore()
+  useObjectiveToasts()
   const [tab, setTab] = useState<TabId>(() => {
     const hash = window.location.hash.replace('#', '')
     return TABS.some((x) => x.id === hash) ? (hash as TabId) : 'flights'
@@ -196,6 +203,7 @@ function Shell() {
 
         <div className="topbar-right">
           <LanguageToggle />
+          <SessionClock />
           <Wallet />
         </div>
       </header>
@@ -212,6 +220,8 @@ function Shell() {
       </main>
 
       <Toasts />
+      <CompletionModal />
+      <StartGate languageToggle={<LanguageToggle />} />
     </div>
   )
 }

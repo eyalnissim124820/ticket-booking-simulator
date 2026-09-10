@@ -76,7 +76,30 @@ export interface LedgerEntry {
   balanceAfter: number
 }
 
+/** The four tasks a run has to clear, one from each desk. */
+export interface SessionObjectives {
+  flight: boolean
+  stay: boolean
+  buy: boolean
+  sell: boolean
+}
+
+export const OBJECTIVE_KEYS: (keyof SessionObjectives)[] = ['flight', 'stay', 'buy', 'sell']
+
+export interface SessionState {
+  status: 'idle' | 'running' | 'complete'
+  startedAt: number | null
+  completedAt: number | null
+  objectives: SessionObjectives
+  /** Money out on bookings and buys, and money in from sales and refunds.
+   *  Both stop accumulating the moment the run completes, so the score is
+   *  whatever it took to finish — not whatever happened afterwards. */
+  spent: number
+  earned: number
+}
+
 export interface AppState {
+  session: SessionState
   cash: number
   flightBookings: FlightBooking[]
   stayBookings: StayBooking[]

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { cx, addDays, parseIso, toIso, todayIso } from '../lib/format'
 import { useI18n } from '../i18n'
 import {
@@ -14,6 +15,29 @@ import {
 } from './icons'
 
 /* -------------------------------------------------------------------- modal */
+/** How many overlays currently want the page frozen. Nested or stacked modals
+ *  must not release the lock until the last one closes. */
+let scrollLocks = 0
+let restoreScrollY = 0
+
+function lockPageScroll() {
+  // The scrolling element is <html> here, not <body> — locking the wrong one
+  // leaves the page scrollable behind the overlay.
+  const root = document.documentElement
+  if (scrollLocks === 0) {
+    restoreScrollY = window.scrollY
+    root.style.overflow = 'hidden'
+  }
+  scrollLocks += 1
+  return () => {
+    scrollLocks = Math.max(0, scrollLocks - 1)
+    if (scrollLocks === 0) {
+      root.style.overflow = ''
+      window.scrollTo(0, restoreScrollY)
+    }
+  }
+}
+
 export function Modal({
   open,
   title,
@@ -36,16 +60,19 @@ export function Modal({
     if (!open) return
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
     window.addEventListener('keydown', onKey)
-    const previous = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const unlock = lockPageScroll()
     return () => {
       window.removeEventListener('keydown', onKey)
-      document.body.style.overflow = previous
+      unlock()
     }
   }, [open, onClose])
 
   if (!open) return null
-  return (
+
+  // Portalled to <body>: a `position: fixed` backdrop is only viewport-relative
+  // when no ancestor establishes a containing block (a transform, filter or
+  // containment anywhere above would re-anchor it mid-page).
+  return createPortal(
     <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className={cx('modal', size !== 'default' && size)} role="dialog" aria-modal="true">
         <header className="modal-head">
@@ -60,7 +87,8 @@ export function Modal({
         <div className="modal-body">{children}</div>
         {footer && <footer className="modal-foot">{footer}</footer>}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

@@ -15,8 +15,11 @@ import type {
   LedgerEntry,
   Order,
   Position,
+  SessionObjectives,
+  SessionState,
   StayBooking,
 } from './types'
+import { OBJECTIVE_KEYS } from './types'
 import { initialQuotes, tickQuotes, type Quote } from '../data/stocks'
 import { makeRef } from '../lib/format'
 import { useI18n } from '../i18n'
@@ -25,7 +28,17 @@ import type { MessageKey } from '../i18n/en'
 const STORAGE_KEY = 'eli-baba:state:v1'
 const STARTING_CASH = 25_000
 
+const IDLE_SESSION: SessionState = {
+  status: 'idle',
+  startedAt: null,
+  completedAt: null,
+  objectives: { flight: false, stay: false, buy: false, sell: false },
+  spent: 0,
+  earned: 0,
+}
+
 const EMPTY_STATE: AppState = {
+  session: IDLE_SESSION,
   cash: STARTING_CASH,
   flightBookings: [],
   stayBookings: [],
@@ -47,7 +60,28 @@ type Action =
   | { type: 'toggle-watch'; symbol: string }
   | { type: 'toggle-saved'; propertyId: string }
   | { type: 'deposit'; amount: number }
+  | { type: 'start-session' }
   | { type: 'reset' }
+
+/** Records progress and cash flow for a running session. Once every objective
+ *  is cleared the run closes itself and stops recording. */
+function advanceSession(
+  session: SessionState,
+  objective: keyof SessionObjectives | null,
+  amount: number,
+): SessionState {
+  if (session.status !== 'running') return session
+  const objectives = objective ? { ...session.objectives, [objective]: true } : session.objectives
+  const complete = OBJECTIVE_KEYS.every((key) => objectives[key])
+  return {
+    ...session,
+    objectives,
+    spent: amount < 0 ? session.spent + Math.abs(amount) : session.spent,
+    earned: amount > 0 ? session.earned + amount : session.earned,
+    status: complete ? 'complete' : 'running',
+    completedAt: complete ? Date.now() : null,
+  }
+}
 
 let ledgerSeq = 0
 function ledgerEntry(
@@ -125,6 +159,7 @@ function applyFill(state: AppState, order: Order, price: number): AppState {
       o.id === order.id ? { ...o, status: 'filled', fillPrice: price, filledAt: Date.now() } : o,
     ),
     ledger: [entry, ...state.ledger].slice(0, 120),
+    session: advanceSession(state.session, order.side, delta),
   }
 }
 
@@ -150,6 +185,7 @@ function reducer(state: AppState, action: Action): AppState {
         cash: state.cash - booking.total,
         flightBookings: [booking, ...state.flightBookings],
         ledger: [entry, ...state.ledger].slice(0, 120),
+        session: advanceSession(state.session, 'flight', -booking.total),
       }
     }
     case 'cancel-flight': {
@@ -165,6 +201,7 @@ function reducer(state: AppState, action: Action): AppState {
           b.id === action.id ? { ...b, status: 'cancelled' } : b,
         ),
         ledger: [entry, ...state.ledger].slice(0, 120),
+        session: advanceSession(state.session, null, refund),
       }
     }
     case 'book-stay': {
@@ -181,6 +218,7 @@ function reducer(state: AppState, action: Action): AppState {
         cash: state.cash - booking.total,
         stayBookings: [booking, ...state.stayBookings],
         ledger: [entry, ...state.ledger].slice(0, 120),
+        session: advanceSession(state.session, 'stay', -booking.total),
       }
     }
     case 'cancel-stay': {
@@ -194,6 +232,7 @@ function reducer(state: AppState, action: Action): AppState {
           b.id === action.id ? { ...b, status: 'cancelled' } : b,
         ),
         ledger: [entry, ...state.ledger].slice(0, 120),
+        session: advanceSession(state.session, null, booking.total),
       }
     }
     case 'place-order': {
@@ -244,6 +283,12 @@ function reducer(state: AppState, action: Action): AppState {
         ledger: [entry, ...state.ledger].slice(0, 120),
       }
     }
+    case 'start-session':
+      // Every run starts from the same clean slate, so times and results compare.
+      return {
+        ...EMPTY_STATE,
+        session: { ...IDLE_SESSION, status: 'running', startedAt: Date.now() },
+      }
     case 'reset':
       return { ...EMPTY_STATE }
     default:
