@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { MISSION_KEYS, isMissionDone, type MissionKey, type MissionResult } from '../../state/types'
 import { STARTING_CASH, usePortfolio, useStore } from '../../state/store'
-import { BrandMark, Modal } from '../../components/ui'
+import { BrandMark, lockPageScroll, Modal } from '../../components/ui'
 import {
   IconArrowUp,
   IconBed,
@@ -13,7 +13,8 @@ import {
   IconPlane,
   IconTarget,
 } from '../../components/icons'
-import { cx } from '../../lib/format'
+import { airportCity, getAirport } from '../../data/airports'
+import { cx, nightsBetween } from '../../lib/format'
 import { useI18n } from '../../i18n'
 import type { MessageKey } from '../../i18n/en'
 
@@ -94,6 +95,86 @@ function MissionList({ activeIndex }: { activeIndex: number | null }) {
   )
 }
 
+/** The run's trip brief, resolved for display. Only the two travel missions
+ *  have one — the drawer and the trades are not part of the trip. */
+function useBrief(mission: MissionKey) {
+  const { t, locale, formatDate, arrow, plural } = useI18n()
+  const { state } = useStore()
+  const brief = state.session.brief
+
+  if (!brief || (mission !== 'flight' && mission !== 'stay')) return null
+
+  const from = airportCity(getAirport(brief.from), locale)
+  const to = airportCity(getAirport(brief.to), locale)
+  const dates = `${formatDate(brief.departIso, 'short')} ${arrow} ${formatDate(brief.returnIso, 'short')}`
+  const nights = plural.nights(nightsBetween(brief.departIso, brief.returnIso))
+  const people =
+    mission === 'flight' ? plural.travellers(brief.travellers) : plural.guests(brief.travellers)
+
+  const rows =
+    mission === 'flight'
+      ? [
+          { label: t('brief.route'), value: `${from} ${arrow} ${to}` },
+          { label: t('brief.dates'), value: dates },
+          { label: t('brief.travellers'), value: people },
+        ]
+      : [
+          { label: t('brief.city'), value: to },
+          { label: t('brief.dates'), value: `${dates} · ${nights}` },
+          { label: t('brief.guests'), value: people },
+        ]
+
+  const line =
+    mission === 'flight'
+      ? `${from} ${arrow} ${to} · ${dates} · ${people}`
+      : `${to} · ${dates} · ${nights} · ${people}`
+
+  return { rows, line }
+}
+
+/** The brief as a block, read before the mission's clock starts. */
+function BriefCard({ mission }: { mission: MissionKey }) {
+  const { t } = useI18n()
+  const brief = useBrief(mission)
+  if (!brief) return null
+
+  return (
+    <div className="brief-card">
+      <span className="panel-title">
+        <IconTarget size={12} /> {t('brief.title')}
+      </span>
+      {brief.rows.map(({ label, value }) => (
+        <div key={label} className="row-between">
+          <span className="muted">{label}</span>
+          <strong>{value}</strong>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** The same brief as a strip under the header, in view for as long as the
+ *  mission it belongs to is the one being worked. */
+export function MissionBrief() {
+  const { t } = useI18n()
+  const { state } = useStore()
+  const { session } = state
+  const mission = MISSION_KEYS[session.index]
+  const brief = useBrief(mission)
+
+  if (session.status !== 'running' || session.handoff || !brief) return null
+
+  return (
+    <div className="brief-bar">
+      <span className="brief-bar-task">
+        <IconTarget size={14} />
+        <strong>{t(MISSION_META[mission].label)}</strong>
+      </span>
+      <span className="brief-bar-line">{brief.line}</span>
+    </div>
+  )
+}
+
 /** Non-dismissible gate shown before a run begins. */
 export function StartGate({ languageToggle }: { languageToggle: ReactNode }) {
   const { t } = useI18n()
@@ -102,12 +183,7 @@ export function StartGate({ languageToggle }: { languageToggle: ReactNode }) {
 
   useEffect(() => {
     if (!idle) return
-    const root = document.documentElement
-    const previous = root.style.overflow
-    root.style.overflow = 'hidden'
-    return () => {
-      root.style.overflow = previous
-    }
+    return lockPageScroll()
   }, [idle])
 
   if (!idle) return null
@@ -146,12 +222,7 @@ export function DrawerMission() {
 
   useEffect(() => {
     if (!open) return
-    const root = document.documentElement
-    const previous = root.style.overflow
-    root.style.overflow = 'hidden'
-    return () => {
-      root.style.overflow = previous
-    }
+    return lockPageScroll()
   }, [open])
 
   if (!open) return null
@@ -198,12 +269,7 @@ export function MissionHandoff() {
 
   useEffect(() => {
     if (!open) return
-    const root = document.documentElement
-    const previous = root.style.overflow
-    root.style.overflow = 'hidden'
-    return () => {
-      root.style.overflow = previous
-    }
+    return lockPageScroll()
   }, [open])
 
   if (!open || !result) return null
@@ -245,6 +311,8 @@ export function MissionHandoff() {
             <strong className="mono" style={{ fontSize: 17 }}>{money(result.cashAfter)}</strong>
           </div>
         </div>
+
+        <BriefCard mission={nextKey} />
 
         <button
           className="btn btn-primary btn-lg"

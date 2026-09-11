@@ -59,6 +59,14 @@ The missions are worked in order, one at a time:
 full-screen stopwatch runs while you build the drawer, and you press **I'm done** when you
 come back. Every mission after it is cleared inside the app.
 
+**The travel missions come with a brief.** Each run draws a trip — where to fly, which
+weekend, how many people — and the handoff card shows it before the next mission's clock
+starts. While the flight or the stay mission is live, the same brief sits in a strip under
+the header: *Book a flight · Tel Aviv → Milan · Fri, Oct 9 → Sun, Oct 11 · 2 travellers*.
+The stay mission inherits the same city, dates and party size, so one brief covers the
+whole trip. Nothing is pre-filled into the search forms and nothing is checked against the
+brief — it is the target to work to, not a rail.
+
 Clearing a mission takes over the screen with a handoff card — a tick, the mission name,
 the **time that mission took**, what it **cost or earned**, the **budget left** and the
 checklist with the next mission highlighted. Nothing advances until you press **Next

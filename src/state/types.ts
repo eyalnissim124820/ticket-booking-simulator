@@ -1,3 +1,4 @@
+import type { TripBrief } from '../data/briefs'
 import type { CabinClass, FlightOffer } from '../data/flights'
 import type { MessageKey } from '../i18n/en'
 
@@ -99,6 +100,9 @@ export interface SessionState {
   status: 'idle' | 'running' | 'complete'
   startedAt: number | null
   completedAt: number | null
+  /** Where to go, when, and with how many people — drawn once per run and
+   *  shown while the flight and stay missions are live. Null before a run. */
+  brief: TripBrief | null
   /** Index into MISSION_KEYS of the mission being worked on right now. */
   index: number
   /** When the active mission's own clock started. */

@@ -21,6 +21,7 @@ import type {
   StayBooking,
 } from './types'
 import { MISSION_KEYS } from './types'
+import { makeTripBrief } from '../data/briefs'
 import { initialQuotes, tickQuotes, type Quote } from '../data/stocks'
 import { makeRef } from '../lib/format'
 import { useI18n } from '../i18n'
@@ -33,6 +34,7 @@ const IDLE_SESSION: SessionState = {
   status: 'idle',
   startedAt: null,
   completedAt: null,
+  brief: null,
   index: 0,
   missionStartedAt: null,
   missionSpent: 0,
@@ -326,7 +328,13 @@ function reducer(state: AppState, action: Action): AppState {
       const now = Date.now()
       return {
         ...EMPTY_STATE,
-        session: { ...IDLE_SESSION, status: 'running', startedAt: now, missionStartedAt: now },
+        session: {
+          ...IDLE_SESSION,
+          status: 'running',
+          startedAt: now,
+          missionStartedAt: now,
+          brief: makeTripBrief(),
+        },
       }
     }
     case 'finish-mission': {

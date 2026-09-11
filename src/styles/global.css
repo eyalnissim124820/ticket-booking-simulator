@@ -100,8 +100,11 @@ a { color: var(--brand); text-underline-offset: 3px; }
 /* ------------------------------------------------------------------ shell -- */
 .app { min-height: 100vh; display: flex; flex-direction: column; }
 
+/* Header plus, during a run, the mission brief — one sticky block, measured
+   into --chrome-h so the panels that stick below it follow its height. */
+.chrome { position: sticky; inset-block-start: 0; z-index: 40; }
+
 .topbar {
-  position: sticky; inset-block-start: 0; z-index: 40;
   display: flex; align-items: stretch; gap: 22px;
   padding-inline: 26px; min-height: 70px;
   background: var(--paper);
@@ -320,7 +323,7 @@ input[type='number'] { font-family: var(--mono); }
 /* Grid children default to min-width:auto and refuse to shrink below their
    content, which pushes the page wider than the screen on narrow viewports. */
 .results-layout > *, .markets-layout > * { min-width: 0; }
-.filters { position: sticky; inset-block-start: 88px; display: flex; flex-direction: column; gap: 18px; padding: 18px; }
+.filters { position: sticky; inset-block-start: calc(var(--chrome-h, 70px) + 18px); display: flex; flex-direction: column; gap: 18px; padding: 18px; }
 .filter-group { display: flex; flex-direction: column; gap: 9px; }
 .checkline { display: flex; align-items: center; gap: 9px; cursor: pointer; color: var(--ink-2); font-size: 14px; }
 .checkline:hover { color: var(--ink); }
@@ -712,6 +715,27 @@ input[type='range'] { width: 100%; accent-color: var(--brand); cursor: pointer; 
   color: var(--brand); font-variant-numeric: tabular-nums;
 }
 
+/* What this mission is briefed to book, kept in view under the header. */
+.brief-bar {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px;
+  padding: 9px 26px; background: var(--brand); color: var(--brand-ink);
+  font-size: 13.5px;
+  animation: briefIn 0.3s cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+.brief-bar-task { display: inline-flex; align-items: center; gap: 8px; flex: none; }
+.brief-bar-line {
+  color: #cfded9; min-width: 0;
+  border-inline-start: 1px solid rgba(246, 241, 231, 0.28); padding-inline-start: 14px;
+}
+@keyframes briefIn { from { opacity: 0; transform: translateY(-6px); } }
+
+.brief-card {
+  width: 100%; display: grid; gap: 8px; text-align: start;
+  padding: 14px 16px; background: var(--brand-soft);
+  border: 1px solid var(--brand); border-radius: var(--radius);
+}
+.brief-card .panel-title { display: inline-flex; align-items: center; gap: 7px; color: var(--brand); }
+
 /* The wallet flashes and names the amount whenever the balance moves. */
 .wallet-wrap { position: relative; display: flex; }
 .wallet-item.flash { background: var(--accent-soft); }
@@ -729,6 +753,8 @@ input[type='range'] { width: 100%; accent-color: var(--brand); cursor: pointer; 
   .big-clock-time { font-size: 50px; }
   .mission { font-size: 14px; padding: 9px 11px; }
   .notch-task { display: none; }
+  .brief-bar { padding: 9px 16px; font-size: 12.5px; }
+  .brief-bar-line { border-inline-start: 0; padding-inline-start: 0; flex-basis: 100%; }
 }
 
 
