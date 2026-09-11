@@ -7,6 +7,7 @@ import { MarketsTab } from './features/markets/MarketsTab'
 import { BrandMark, Modal, Ornament } from './components/ui'
 import {
   DrawerMission,
+  MissionBrief,
   MissionHandoff,
   RunSummary,
   SessionNotch,
@@ -192,9 +193,28 @@ function Toasts() {
   )
 }
 
+/** Publishes the height of the sticky chrome as `--chrome-h`, so panels that
+ *  stick below it (the filter rails) follow the header as it grows a brief bar
+ *  or wraps onto more rows. */
+function useChromeHeight() {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const node = ref.current
+    if (!node) return
+    const publish = () =>
+      document.documentElement.style.setProperty('--chrome-h', `${node.offsetHeight}px`)
+    publish()
+    const observer = new ResizeObserver(publish)
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [])
+  return ref
+}
+
 function Shell() {
   const { t } = useI18n()
   const { state } = useStore()
+  const chromeRef = useChromeHeight()
   const [tab, setTab] = useState<TabId>(() => {
     const hash = window.location.hash.replace('#', '')
     return TABS.some((x) => x.id === hash) ? (hash as TabId) : 'flights'
@@ -221,35 +241,39 @@ function Shell() {
 
   return (
     <div className="app">
-      <header className="topbar">
-        {/* Left and right groups both flex, which keeps the notch centred in the bar. */}
-        <div className="topbar-left">
-          <div className="brand">
-            <BrandMark />
-            <div>
-              <span className="brand-name">{t('app.name')}</span>
-              <span className="brand-sub">{t('app.tagline')}</span>
+      <div className="chrome" ref={chromeRef}>
+        <header className="topbar">
+          {/* Left and right groups both flex, which keeps the notch centred in the bar. */}
+          <div className="topbar-left">
+            <div className="brand">
+              <BrandMark />
+              <div>
+                <span className="brand-name">{t('app.name')}</span>
+                <span className="brand-sub">{t('app.tagline')}</span>
+              </div>
             </div>
+
+            <nav className="tabs" role="tablist" aria-label={t('app.name')}>
+              {TABS.map(({ id, key, Icon }) => (
+                <button key={id} className="tab" role="tab" aria-selected={tab === id} onClick={() => setTab(id)}>
+                  <Icon size={16} />
+                  {t(key)}
+                  {counts[id] > 0 && <span className="badge">{counts[id]}</span>}
+                </button>
+              ))}
+            </nav>
           </div>
 
-          <nav className="tabs" role="tablist" aria-label={t('app.name')}>
-            {TABS.map(({ id, key, Icon }) => (
-              <button key={id} className="tab" role="tab" aria-selected={tab === id} onClick={() => setTab(id)}>
-                <Icon size={16} />
-                {t(key)}
-                {counts[id] > 0 && <span className="badge">{counts[id]}</span>}
-              </button>
-            ))}
-          </nav>
-        </div>
+          <SessionNotch />
 
-        <SessionNotch />
+          <div className="topbar-right">
+            <LanguageToggle />
+            <Wallet />
+          </div>
+        </header>
 
-        <div className="topbar-right">
-          <LanguageToggle />
-          <Wallet />
-        </div>
-      </header>
+        <MissionBrief />
+      </div>
 
       <main className="main" role="tabpanel">
         {tab === 'flights' && <FlightsTab />}

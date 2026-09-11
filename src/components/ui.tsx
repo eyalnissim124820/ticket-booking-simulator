@@ -20,7 +20,11 @@ import {
 let scrollLocks = 0
 let restoreScrollY = 0
 
-function lockPageScroll() {
+/** Freezes the page while an overlay is up; returns the release.
+ *  Every overlay must go through this counter — an overlay that saves and
+ *  restores `overflow` itself will hand back a stale value when it closes
+ *  after a modal that was open underneath it, and the page stays frozen. */
+export function lockPageScroll() {
   // The scrolling element is <html> here, not <body> — locking the wrong one
   // leaves the page scrollable behind the overlay.
   const root = document.documentElement
