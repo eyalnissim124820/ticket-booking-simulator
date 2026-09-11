@@ -76,26 +76,49 @@ export interface LedgerEntry {
   balanceAfter: number
 }
 
-/** The four tasks a run has to clear, one from each desk. */
-export interface SessionObjectives {
-  flight: boolean
-  stay: boolean
-  buy: boolean
-  sell: boolean
-}
+/** The five missions of a run, in the order they must be cleared.
+ *  `drawer` happens away from the screen — the app only times it. */
+export type MissionKey = 'drawer' | 'flight' | 'stay' | 'buy' | 'sell'
 
-export const OBJECTIVE_KEYS: (keyof SessionObjectives)[] = ['flight', 'stay', 'buy', 'sell']
+export const MISSION_KEYS: MissionKey[] = ['drawer', 'flight', 'stay', 'buy', 'sell']
+
+/** What one cleared mission cost, earned and took. */
+export interface MissionResult {
+  key: MissionKey
+  startedAt: number
+  completedAt: number
+  durationMs: number
+  /** Money out and money in while this mission was the active one. */
+  spent: number
+  earned: number
+  /** Cash left the moment the mission cleared, so the run reads as a budget. */
+  cashAfter: number
+}
 
 export interface SessionState {
   status: 'idle' | 'running' | 'complete'
   startedAt: number | null
   completedAt: number | null
-  objectives: SessionObjectives
+  /** Index into MISSION_KEYS of the mission being worked on right now. */
+  index: number
+  /** When the active mission's own clock started. */
+  missionStartedAt: number | null
+  /** Cash flow recorded against the active mission only. */
+  missionSpent: number
+  missionEarned: number
+  /** True from the moment a mission clears until "next mission" is pressed. */
+  handoff: boolean
+  results: MissionResult[]
   /** Money out on bookings and buys, and money in from sales and refunds.
    *  Both stop accumulating the moment the run completes, so the score is
    *  whatever it took to finish — not whatever happened afterwards. */
   spent: number
   earned: number
+}
+
+/** Has this mission already been cleared in this run? */
+export function isMissionDone(session: SessionState, key: MissionKey): boolean {
+  return session.results.some((r) => r.key === key)
 }
 
 export interface AppState {

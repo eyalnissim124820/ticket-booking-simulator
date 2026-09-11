@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   amenityKey,
   pairText,
@@ -40,6 +40,12 @@ export function StayBookingFlow({
   const [requests, setRequests] = useState('')
   const [breakfast, setBreakfast] = useState(false)
   const [done, setDone] = useState(false)
+
+  // Once a booking clears a mission the handoff screen takes over, so this
+  // flow steps aside instead of waiting behind it.
+  useEffect(() => {
+    if (state.session.handoff) onClose()
+  }, [state.session.handoff, onClose])
 
   const STEPS = [t('stays.room'), t('stays.guest'), t('common.payment')]
   const nights = nightsBetween(checkIn, checkOut)

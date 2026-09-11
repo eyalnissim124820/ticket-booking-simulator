@@ -117,6 +117,9 @@ export const IconInfo = (p: IconProps) => (
 export const IconAlert = (p: IconProps) => (
   <Icon {...p}><path d="M12 4.5 21 19.5H3L12 4.5ZM12 10v4M12 17h.01" /></Icon>
 )
+export const IconDrawer = (p: IconProps) => (
+  <Icon {...p}><rect x="3" y="4.5" width="18" height="6.5" rx="1.2" /><rect x="3" y="13" width="18" height="6.5" rx="1.2" /><path d="M10 7.75h4M10 16.25h4" /></Icon>
+)
 export const IconTarget = (p: IconProps) => (
   <Icon {...p}><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="3.4" /></Icon>
 )

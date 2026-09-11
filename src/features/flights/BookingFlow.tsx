@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   AIRLINE_BY_CODE,
   airlineName,
@@ -162,6 +162,12 @@ export function BookingFlow({
   const [insurance, setInsurance] = useState(false)
   const [flexible, setFlexible] = useState(false)
   const [done, setDone] = useState(false)
+
+  // Once a booking clears a mission the handoff screen takes over, so this
+  // flow steps aside instead of waiting behind it.
+  useEffect(() => {
+    if (state.session.handoff) onClose()
+  }, [state.session.handoff, onClose])
 
   const STEPS = [t('common.review'), t('flights.stepSeats'), t('flights.stepTravellers'), t('common.payment')]
 

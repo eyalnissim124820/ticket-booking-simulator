@@ -13,26 +13,32 @@ import type {
   AppState,
   FlightBooking,
   LedgerEntry,
+  MissionKey,
+  MissionResult,
   Order,
   Position,
-  SessionObjectives,
   SessionState,
   StayBooking,
 } from './types'
-import { OBJECTIVE_KEYS } from './types'
+import { MISSION_KEYS } from './types'
 import { initialQuotes, tickQuotes, type Quote } from '../data/stocks'
 import { makeRef } from '../lib/format'
 import { useI18n } from '../i18n'
 import type { MessageKey } from '../i18n/en'
 
-const STORAGE_KEY = 'eli-baba:state:v1'
+const STORAGE_KEY = 'eli-baba:state:v2'
 const STARTING_CASH = 25_000
 
 const IDLE_SESSION: SessionState = {
   status: 'idle',
   startedAt: null,
   completedAt: null,
-  objectives: { flight: false, stay: false, buy: false, sell: false },
+  index: 0,
+  missionStartedAt: null,
+  missionSpent: 0,
+  missionEarned: 0,
+  handoff: false,
+  results: [],
   spent: 0,
   earned: 0,
 }
@@ -61,26 +67,58 @@ type Action =
   | { type: 'toggle-saved'; propertyId: string }
   | { type: 'deposit'; amount: number }
   | { type: 'start-session' }
+  | { type: 'finish-mission' }
+  | { type: 'next-mission' }
   | { type: 'reset' }
 
-/** Records progress and cash flow for a running session. Once every objective
- *  is cleared the run closes itself and stops recording. */
-function advanceSession(
-  session: SessionState,
-  objective: keyof SessionObjectives | null,
-  amount: number,
-): SessionState {
-  if (session.status !== 'running') return session
-  const objectives = objective ? { ...session.objectives, [objective]: true } : session.objectives
-  const complete = OBJECTIVE_KEYS.every((key) => objectives[key])
+/** Closes the active mission: stamps its time and its share of the budget,
+ *  then either parks the run on a handoff screen or ends it. */
+function closeMission(session: SessionState, cashAfter: number): SessionState {
+  const key = MISSION_KEYS[session.index]
+  const now = Date.now()
+  const startedAt = session.missionStartedAt ?? now
+  const result: MissionResult = {
+    key,
+    startedAt,
+    completedAt: now,
+    durationMs: now - startedAt,
+    spent: session.missionSpent,
+    earned: session.missionEarned,
+    cashAfter,
+  }
+  const last = session.index >= MISSION_KEYS.length - 1
   return {
     ...session,
-    objectives,
-    spent: amount < 0 ? session.spent + Math.abs(amount) : session.spent,
-    earned: amount > 0 ? session.earned + amount : session.earned,
-    status: complete ? 'complete' : 'running',
-    completedAt: complete ? Date.now() : null,
+    results: [...session.results, result],
+    // The last mission goes straight to the summary; the others wait for the
+    // player to read their result and press "next mission".
+    handoff: !last,
+    status: last ? 'complete' : 'running',
+    completedAt: last ? now : null,
   }
+}
+
+/** Records cash flow for a running session, and clears the active mission when
+ *  the action that just happened is the one it was waiting for. Actions taken
+ *  out of turn still move money — they just don't tick a later mission early. */
+function advanceSession(
+  session: SessionState,
+  mission: MissionKey | null,
+  amount: number,
+  cashAfter: number,
+): SessionState {
+  if (session.status !== 'running') return session
+  const spent = amount < 0 ? Math.abs(amount) : 0
+  const earned = amount > 0 ? amount : 0
+  const next: SessionState = {
+    ...session,
+    spent: session.spent + spent,
+    earned: session.earned + earned,
+    missionSpent: session.missionSpent + spent,
+    missionEarned: session.missionEarned + earned,
+  }
+  if (!mission || session.handoff || MISSION_KEYS[session.index] !== mission) return next
+  return closeMission(next, cashAfter)
 }
 
 let ledgerSeq = 0
@@ -159,7 +197,7 @@ function applyFill(state: AppState, order: Order, price: number): AppState {
       o.id === order.id ? { ...o, status: 'filled', fillPrice: price, filledAt: Date.now() } : o,
     ),
     ledger: [entry, ...state.ledger].slice(0, 120),
-    session: advanceSession(state.session, order.side, delta),
+    session: advanceSession(state.session, order.side, delta, state.cash + delta),
   }
 }
 
@@ -185,7 +223,7 @@ function reducer(state: AppState, action: Action): AppState {
         cash: state.cash - booking.total,
         flightBookings: [booking, ...state.flightBookings],
         ledger: [entry, ...state.ledger].slice(0, 120),
-        session: advanceSession(state.session, 'flight', -booking.total),
+        session: advanceSession(state.session, 'flight', -booking.total, state.cash - booking.total),
       }
     }
     case 'cancel-flight': {
@@ -201,7 +239,7 @@ function reducer(state: AppState, action: Action): AppState {
           b.id === action.id ? { ...b, status: 'cancelled' } : b,
         ),
         ledger: [entry, ...state.ledger].slice(0, 120),
-        session: advanceSession(state.session, null, refund),
+        session: advanceSession(state.session, null, refund, state.cash + refund),
       }
     }
     case 'book-stay': {
@@ -218,7 +256,7 @@ function reducer(state: AppState, action: Action): AppState {
         cash: state.cash - booking.total,
         stayBookings: [booking, ...state.stayBookings],
         ledger: [entry, ...state.ledger].slice(0, 120),
-        session: advanceSession(state.session, 'stay', -booking.total),
+        session: advanceSession(state.session, 'stay', -booking.total, state.cash - booking.total),
       }
     }
     case 'cancel-stay': {
@@ -232,7 +270,7 @@ function reducer(state: AppState, action: Action): AppState {
           b.id === action.id ? { ...b, status: 'cancelled' } : b,
         ),
         ledger: [entry, ...state.ledger].slice(0, 120),
-        session: advanceSession(state.session, null, booking.total),
+        session: advanceSession(state.session, null, booking.total, state.cash + booking.total),
       }
     }
     case 'place-order': {
@@ -283,12 +321,35 @@ function reducer(state: AppState, action: Action): AppState {
         ledger: [entry, ...state.ledger].slice(0, 120),
       }
     }
-    case 'start-session':
+    case 'start-session': {
       // Every run starts from the same clean slate, so times and results compare.
+      const now = Date.now()
       return {
         ...EMPTY_STATE,
-        session: { ...IDLE_SESSION, status: 'running', startedAt: Date.now() },
+        session: { ...IDLE_SESSION, status: 'running', startedAt: now, missionStartedAt: now },
       }
+    }
+    case 'finish-mission': {
+      // The player reporting an off-screen mission done — the drawer.
+      const { session } = state
+      if (session.status !== 'running' || session.handoff) return state
+      return { ...state, session: closeMission(session, state.cash) }
+    }
+    case 'next-mission': {
+      const { session } = state
+      if (!session.handoff) return state
+      return {
+        ...state,
+        session: {
+          ...session,
+          index: Math.min(session.index + 1, MISSION_KEYS.length - 1),
+          missionStartedAt: Date.now(),
+          missionSpent: 0,
+          missionEarned: 0,
+          handoff: false,
+        },
+      }
+    }
     case 'reset':
       return { ...EMPTY_STATE }
     default:
@@ -301,7 +362,9 @@ function loadState(): AppState {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return EMPTY_STATE
     const parsed = JSON.parse(raw) as Partial<AppState>
-    return { ...EMPTY_STATE, ...parsed }
+    // Session is merged field by field: a run stored by an older build would
+    // otherwise arrive missing the mission fields the reducer relies on.
+    return { ...EMPTY_STATE, ...parsed, session: { ...IDLE_SESSION, ...parsed.session } }
   } catch {
     return EMPTY_STATE
   }
