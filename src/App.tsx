@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { StoreProvider, usePortfolio, useStore, STARTING_CASH } from './state/store'
 import { I18nProvider, useI18n } from './i18n'
 import { FlightsTab } from './features/flights/FlightsTab'
@@ -6,10 +6,11 @@ import { StaysTab } from './features/stays/StaysTab'
 import { MarketsTab } from './features/markets/MarketsTab'
 import { BrandMark, Modal, Ornament } from './components/ui'
 import {
-  CompletionModal,
+  DrawerMission,
+  MissionHandoff,
+  RunSummary,
   SessionNotch,
   StartGate,
-  useObjectiveToasts,
 } from './features/session/Session'
 import {
   IconAlert,
@@ -48,26 +49,65 @@ function LanguageToggle() {
   )
 }
 
+/** Surfaces the last movement in the wallet for a couple of seconds, so a
+ *  booking or a trade is visibly paid for rather than quietly deducted.
+ *  A new run re-baselines instead of flashing the opening balance. */
+function useCashDelta(cash: number, runStartedAt: number | null) {
+  const [delta, setDelta] = useState<{ id: number; amount: number } | null>(null)
+  const previous = useRef(cash)
+  const run = useRef(runStartedAt)
+
+  useEffect(() => {
+    const before = previous.current
+    previous.current = cash
+    if (run.current !== runStartedAt) {
+      run.current = runStartedAt
+      setDelta(null)
+      return
+    }
+    if (before === cash) return
+    const entry = { id: Date.now(), amount: cash - before }
+    setDelta(entry)
+    const timer = window.setTimeout(() => setDelta((d) => (d?.id === entry.id ? null : d)), 2800)
+    return () => window.clearTimeout(timer)
+  }, [cash, runStartedAt])
+
+  return delta
+}
+
 function Wallet() {
   const { t, money, signedMoney } = useI18n()
   const { state, dispatch, notify } = useStore()
   const portfolio = usePortfolio()
   const [open, setOpen] = useState(false)
+  const delta = useCashDelta(state.cash, state.session.startedAt)
 
   return (
     <>
-      <button className="wallet" onClick={() => setOpen(true)} aria-label={t('wallet.open')}>
-        <span className="wallet-item">
-          <span>{t('wallet.cash')}</span>
-          <strong>{money(state.cash)}</strong>
-        </span>
-        <span className="wallet-item">
-          <span>{t('wallet.netWorth')}</span>
-          <strong className={cx(portfolio.rows.length > 0 && (portfolio.totalPnl >= 0 ? 'up' : 'down'))}>
-            {money(portfolio.netWorth)}
-          </strong>
-        </span>
-      </button>
+      {/* The delta chip hangs below the wallet, outside its clipped box. */}
+      <div className="wallet-wrap">
+        <button className="wallet" onClick={() => setOpen(true)} aria-label={t('wallet.open')}>
+          <span className={cx('wallet-item', delta && 'flash')}>
+            <span>{t('wallet.cash')}</span>
+            <strong>{money(state.cash)}</strong>
+          </span>
+          <span className="wallet-item">
+            <span>{t('wallet.netWorth')}</span>
+            <strong className={cx(portfolio.rows.length > 0 && (portfolio.totalPnl >= 0 ? 'up' : 'down'))}>
+              {money(portfolio.netWorth)}
+            </strong>
+          </span>
+        </button>
+        {delta && (
+          <span
+            key={delta.id}
+            className={cx('wallet-delta', 'mono', delta.amount >= 0 ? 'up' : 'down')}
+            role="status"
+          >
+            {signedMoney(delta.amount)}
+          </span>
+        )}
+      </div>
 
       <Modal
         open={open}
@@ -155,7 +195,6 @@ function Toasts() {
 function Shell() {
   const { t } = useI18n()
   const { state } = useStore()
-  useObjectiveToasts()
   const [tab, setTab] = useState<TabId>(() => {
     const hash = window.location.hash.replace('#', '')
     return TABS.some((x) => x.id === hash) ? (hash as TabId) : 'flights'
@@ -224,7 +263,9 @@ function Shell() {
       </main>
 
       <Toasts />
-      <CompletionModal />
+      <RunSummary />
+      <MissionHandoff />
+      <DrawerMission />
       <StartGate languageToggle={<LanguageToggle />} />
     </div>
   )

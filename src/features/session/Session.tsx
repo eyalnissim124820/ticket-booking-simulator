@@ -1,14 +1,15 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { OBJECTIVE_KEYS, type SessionObjectives } from '../../state/types'
+import { MISSION_KEYS, isMissionDone, type MissionKey, type MissionResult } from '../../state/types'
 import { STARTING_CASH, usePortfolio, useStore } from '../../state/store'
-import { BrandMark, Modal, Ornament } from '../../components/ui'
+import { BrandMark, Modal } from '../../components/ui'
 import {
   IconArrowUp,
   IconBed,
   IconChart,
   IconCheck,
   IconClock,
+  IconDrawer,
   IconPlane,
   IconTarget,
 } from '../../components/icons'
@@ -16,14 +17,12 @@ import { cx } from '../../lib/format'
 import { useI18n } from '../../i18n'
 import type { MessageKey } from '../../i18n/en'
 
-const OBJECTIVE_META: Record<
-  keyof SessionObjectives,
-  { label: MessageKey; hint: MessageKey; Icon: typeof IconPlane }
-> = {
-  flight: { label: 'session.objFlight', hint: 'session.objFlightHint', Icon: IconPlane },
-  stay: { label: 'session.objStay', hint: 'session.objStayHint', Icon: IconBed },
-  buy: { label: 'session.objBuy', hint: 'session.objBuyHint', Icon: IconChart },
-  sell: { label: 'session.objSell', hint: 'session.objSellHint', Icon: IconArrowUp },
+const MISSION_META: Record<MissionKey, { label: MessageKey; Icon: typeof IconPlane }> = {
+  drawer: { label: 'session.objDrawer', Icon: IconDrawer },
+  flight: { label: 'session.objFlight', Icon: IconPlane },
+  stay: { label: 'session.objStay', Icon: IconBed },
+  buy: { label: 'session.objBuy', Icon: IconChart },
+  sell: { label: 'session.objSell', Icon: IconArrowUp },
 }
 
 /** mm:ss, growing to h:mm:ss once a run passes the hour. */
@@ -36,53 +35,68 @@ export function formatElapsed(ms: number): string {
   return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`
 }
 
+/** A clock that ticks while `live` and stops the moment it isn't. */
+function useTicker(live: boolean): number {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    if (!live) return
+    setNow(Date.now())
+    const id = window.setInterval(() => setNow(Date.now()), 500)
+    return () => window.clearInterval(id)
+  }, [live])
+  return now
+}
+
 /** Elapsed run time: ticks while running, frozen once the run completes. */
 export function useElapsed(): number {
   const { state } = useStore()
   const { session } = state
-  const [now, setNow] = useState(() => Date.now())
-
-  useEffect(() => {
-    if (session.status !== 'running') return
-    const id = window.setInterval(() => setNow(Date.now()), 1000)
-    return () => window.clearInterval(id)
-  }, [session.status])
-
+  const now = useTicker(session.status === 'running')
   if (!session.startedAt) return 0
   const end = session.status === 'complete' && session.completedAt ? session.completedAt : now
   return end - session.startedAt
 }
 
-function ObjectiveList({
-  objectives,
-  withHints = false,
-}: {
-  objectives: SessionObjectives
-  withHints?: boolean
-}) {
+/** Elapsed time on the mission currently being worked on. */
+function useMissionElapsed(): number {
+  const { state } = useStore()
+  const { session } = state
+  const live = session.status === 'running' && !session.handoff
+  const now = useTicker(live)
+  if (!session.missionStartedAt) return 0
+  return Math.max(0, now - session.missionStartedAt)
+}
+
+/** The ordered mission checklist: what is done, what is live, what is left. */
+function MissionList({ activeIndex }: { activeIndex: number | null }) {
   const { t } = useI18n()
+  const { state } = useStore()
+  const { session } = state
+
   return (
-    <ul className="objective-list">
-      {OBJECTIVE_KEYS.map((key) => {
-        const { label, hint, Icon } = OBJECTIVE_META[key]
-        const done = objectives[key]
+    <ol className="mission-list">
+      {MISSION_KEYS.map((key, i) => {
+        const { label, Icon } = MISSION_META[key]
+        const done = session.status !== 'idle' && isMissionDone(session, key)
+        const active = activeIndex === i && !done
         return (
-          <li key={key} className={cx('objective', done && 'done')}>
-            <span className="objective-mark">{done ? <IconCheck size={13} /> : <Icon size={14} />}</span>
-            <span className="grow">
-              <strong>{t(label)}</strong>
-              {withHints && <span className="faint" style={{ fontSize: 12.5 }}> · {t(hint)}</span>}
+          <li key={key} className={cx('mission', done && 'done', active && 'active')}>
+            <span className="mission-mark">
+              {done ? <IconCheck size={14} /> : <span className="mono">{i + 1}</span>}
             </span>
+            <Icon size={16} className="mission-glyph" />
+            <span className="grow">{t(label)}</span>
+            {active && <span className="mission-flag">{t('session.upNext')}</span>}
           </li>
         )
       })}
-    </ul>
+    </ol>
   )
 }
 
 /** Non-dismissible gate shown before a run begins. */
 export function StartGate({ languageToggle }: { languageToggle: ReactNode }) {
-  const { t, money } = useI18n()
+  const { t } = useI18n()
   const { state, dispatch } = useStore()
   const idle = state.session.status === 'idle'
 
@@ -102,17 +116,10 @@ export function StartGate({ languageToggle }: { languageToggle: ReactNode }) {
     <div className="gate" role="dialog" aria-modal="true">
       <div className="gate-panel">
         <div className="gate-lang">{languageToggle}</div>
-        <BrandMark size={40} />
-        <span className="panel-title">{t('session.eyebrow')}</span>
+        <BrandMark size={36} />
         <h1 className="gate-title">{t('session.gateTitle')}</h1>
-        <p className="muted" style={{ maxWidth: 460 }}>
-          {t('session.gateBody', { amount: money(STARTING_CASH) })}
-        </p>
 
-        <div className="gate-objectives">
-          <span className="panel-title">{t('session.objectives')}</span>
-          <ObjectiveList objectives={{ flight: false, stay: false, buy: false, sell: false }} withHints />
-        </div>
+        <MissionList activeIndex={null} />
 
         <button
           className="btn btn-primary btn-lg"
@@ -121,17 +128,140 @@ export function StartGate({ languageToggle }: { languageToggle: ReactNode }) {
         >
           {t('session.start')}
         </button>
-
-        <Ornament />
-        <p className="faint" style={{ fontSize: 12.5, maxWidth: 430 }}>{t('session.gateFooter')}</p>
+        <p className="faint" style={{ fontSize: 13 }}>{t('session.gateSub')}</p>
       </div>
     </div>,
     document.body,
   )
 }
 
-/** The run status, shown as a notch hanging from the top edge of the screen.
- *  Icons rather than labels keep it compact and identical in both languages. */
+/** Mission one happens off-screen. The app does nothing here but keep time. */
+export function DrawerMission() {
+  const { t } = useI18n()
+  const { state, dispatch } = useStore()
+  const { session } = state
+  const elapsed = useMissionElapsed()
+  const open =
+    session.status === 'running' && !session.handoff && MISSION_KEYS[session.index] === 'drawer'
+
+  useEffect(() => {
+    if (!open) return
+    const root = document.documentElement
+    const previous = root.style.overflow
+    root.style.overflow = 'hidden'
+    return () => {
+      root.style.overflow = previous
+    }
+  }, [open])
+
+  if (!open) return null
+
+  return createPortal(
+    <div className="gate" role="dialog" aria-modal="true">
+      <div className="gate-panel">
+        <span className="panel-title">
+          {t('session.missionOf', { n: 1, total: MISSION_KEYS.length })}
+        </span>
+        <div className="mission-icon"><IconDrawer size={26} /></div>
+        <h1 className="gate-title">{t('session.drawerTitle')}</h1>
+        <p className="muted" style={{ maxWidth: 420 }}>{t('session.drawerBody')}</p>
+
+        <div className="big-clock" role="timer" aria-live="off">
+          <span className="panel-title">
+            <IconClock size={13} /> {t('session.drawerTiming')}
+          </span>
+          <span className="big-clock-time mono">{formatElapsed(elapsed)}</span>
+        </div>
+
+        <button
+          className="btn btn-primary btn-lg"
+          style={{ minWidth: 250 }}
+          onClick={() => dispatch({ type: 'finish-mission' })}
+        >
+          <IconCheck size={18} />
+          {t('session.drawerDone')}
+        </button>
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
+/** Shown the moment a mission clears, so completion is unmistakable and the
+ *  next mission only starts when the player says go. */
+export function MissionHandoff() {
+  const { t, money, signedMoney } = useI18n()
+  const { state, dispatch } = useStore()
+  const { session } = state
+  const open = session.status === 'running' && session.handoff
+  const result: MissionResult | undefined = session.results.at(-1)
+
+  useEffect(() => {
+    if (!open) return
+    const root = document.documentElement
+    const previous = root.style.overflow
+    root.style.overflow = 'hidden'
+    return () => {
+      root.style.overflow = previous
+    }
+  }, [open])
+
+  if (!open || !result) return null
+
+  const nextKey = MISSION_KEYS[Math.min(session.index + 1, MISSION_KEYS.length - 1)]
+  const net = result.earned - result.spent
+
+  return createPortal(
+    <div className="gate" role="dialog" aria-modal="true">
+      <div className="gate-panel">
+        <div className="mission-icon done"><IconCheck size={28} /></div>
+        <span className="panel-title">{t('session.missionComplete')}</span>
+        <h1 className="gate-title">{t(MISSION_META[result.key].label)}</h1>
+
+        <div className="big-clock">
+          <span className="panel-title">{t('session.missionTime')}</span>
+          <span className="big-clock-time mono">{formatElapsed(result.durationMs)}</span>
+        </div>
+
+        <div className="budget-card">
+          {net === 0 ? (
+            <div className="row-between">
+              <span className="muted">{t('session.budget')}</span>
+              <span className="faint">{t('session.noMoneyMoved')}</span>
+            </div>
+          ) : (
+            <div className="row-between">
+              <span className="muted">
+                {result.spent > 0 ? t('session.spentOnMission') : t('session.earnedOnMission')}
+              </span>
+              <strong className={cx('mono', net >= 0 ? 'up' : 'down')} style={{ fontSize: 17 }}>
+                {signedMoney(net)}
+              </strong>
+            </div>
+          )}
+          <hr className="divider" />
+          <div className="row-between">
+            <strong>{t('session.budgetLeft')}</strong>
+            <strong className="mono" style={{ fontSize: 17 }}>{money(result.cashAfter)}</strong>
+          </div>
+        </div>
+
+        <button
+          className="btn btn-primary btn-lg"
+          style={{ minWidth: 280 }}
+          onClick={() => dispatch({ type: 'next-mission' })}
+        >
+          {t('session.nextMission')} · {t(MISSION_META[nextKey].label)}
+        </button>
+
+        <MissionList activeIndex={session.index + 1} />
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
+/** The run status, shown as a notch hanging from the top edge of the screen. */
 export function SessionNotch() {
   const { t } = useI18n()
   const { state } = useStore()
@@ -139,14 +269,15 @@ export function SessionNotch() {
   const elapsed = useElapsed()
 
   if (session.status === 'idle') return null
-  const done = OBJECTIVE_KEYS.filter((key) => session.objectives[key]).length
+  const done = session.results.length
   const complete = session.status === 'complete'
+  const activeLabel = complete ? null : t(MISSION_META[MISSION_KEYS[session.index]].label)
 
   return (
     <div
       className={cx('notch', complete && 'complete')}
       role="status"
-      aria-label={`${t('session.elapsedLabel')} ${formatElapsed(elapsed)} · ${t('session.progressLabel')} ${done}/${OBJECTIVE_KEYS.length}`}
+      aria-label={`${t('session.elapsedLabel')} ${formatElapsed(elapsed)} · ${t('session.progressLabel')} ${done}/${MISSION_KEYS.length}`}
     >
       {/* stands in for the camera on a real notch — it lights up when the run closes */}
       <span className="notch-lens" aria-hidden="true" />
@@ -157,14 +288,16 @@ export function SessionNotch() {
       <span className="notch-sep" aria-hidden="true" />
       <span className="notch-metric" title={t('session.progressLabel')}>
         {complete ? <IconCheck size={12} /> : <IconTarget size={12} />}
-        <span className="mono">{done}/{OBJECTIVE_KEYS.length}</span>
+        <span className="mono">{done}/{MISSION_KEYS.length}</span>
       </span>
+      {activeLabel && <span className="notch-task">{activeLabel}</span>}
     </div>
   )
 }
 
-/** Result card shown once every objective clears. */
-export function CompletionModal() {
+/** Result card shown once every mission clears: what was done, and how long
+ *  each one took. */
+export function RunSummary() {
   const { t, money, signedMoney } = useI18n()
   const { state, dispatch } = useStore()
   const portfolio = usePortfolio()
@@ -202,17 +335,41 @@ export function CompletionModal() {
         </>
       }
     >
-      <div style={{ textAlign: 'center', display: 'grid', gap: 10, justifyItems: 'center' }}>
-        <IconCheck size={36} style={{ color: 'var(--brand)' }} />
-        <h3 style={{ fontSize: 24 }}>{t('session.completeHeadline')}</h3>
-        <p className="muted">{t('session.completeBody')}</p>
+      <div style={{ textAlign: 'center', display: 'grid', gap: 8, justifyItems: 'center' }}>
+        <div className="mission-icon done"><IconCheck size={26} /></div>
+        <h3 style={{ fontSize: 22 }}>{t('session.completeHeadline')}</h3>
         <div className="result-time mono">{formatElapsed(elapsed)}</div>
         <span className="panel-title">{t('session.timeTaken')}</span>
       </div>
 
-      <ObjectiveList objectives={session.objectives} />
+      <div className="stack" style={{ gap: 10 }}>
+        <span className="panel-title">{t('session.missionBreakdown')}</span>
+        <ol className="mission-list">
+          {session.results.map((result, i) => {
+            const { label, Icon } = MISSION_META[result.key]
+            const missionNet = result.earned - result.spent
+            return (
+              <li key={result.key} className="mission done">
+                <span className="mission-mark"><span className="mono">{i + 1}</span></span>
+                <Icon size={16} className="mission-glyph" />
+                <span className="grow">{t(label)}</span>
+                {missionNet !== 0 && (
+                  <span className={cx('mono mission-money', missionNet >= 0 ? 'up' : 'down')}>
+                    {signedMoney(missionNet)}
+                  </span>
+                )}
+                <span className="mono mission-duration">{formatElapsed(result.durationMs)}</span>
+              </li>
+            )
+          })}
+        </ol>
+      </div>
 
       <div className="order-summary">
+        <div className="row-between">
+          <span className="muted">{t('session.startingBudget')}</span>
+          <span className="mono">{money(STARTING_CASH)}</span>
+        </div>
         <div className="row-between">
           <span className="muted">{t('session.totalSpent')}</span>
           <strong className="mono">{money(session.spent)}</strong>
@@ -237,32 +394,4 @@ export function CompletionModal() {
       <p className="faint" style={{ fontSize: 12.5 }}>{t('session.scoreNote')}</p>
     </Modal>
   )
-}
-
-/** Announces each objective as it clears. */
-export function useObjectiveToasts() {
-  const { t } = useI18n()
-  const { state, notify } = useStore()
-  const { session } = state
-  const previous = useRef<SessionObjectives | null>(null)
-
-  useEffect(() => {
-    const before = previous.current
-    previous.current = session.objectives
-    if (!before || session.status === 'idle') return
-
-    for (const key of OBJECTIVE_KEYS) {
-      if (session.objectives[key] && !before[key]) {
-        const remaining = OBJECTIVE_KEYS.filter((k) => !session.objectives[k]).length
-        notify({
-          tone: 'success',
-          title: t('session.objectiveDone'),
-          body:
-            remaining > 0
-              ? `${t(OBJECTIVE_META[key].label)} · ${t('session.remaining', { count: remaining })}`
-              : t(OBJECTIVE_META[key].label),
-        })
-      }
-    }
-  }, [session.objectives, session.status, notify, t])
 }

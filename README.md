@@ -41,26 +41,45 @@ message catalogue, so a missing Hebrew key fails the build rather than the page.
 
 ## The timed simulation
 
-The app opens on a **Start simulation** gate. Pressing it starts the clock and resets the
-wallet to the opening balance, so every run begins from the same slate and times and
-results are comparable between players.
+The app opens on a **Start simulation** gate: five numbered missions, and nothing else to
+read. Pressing start begins the clock and resets the wallet to the opening balance, so
+every run begins from the same slate and times and results are comparable between players.
 
-A run clears when you have completed one task on each desk:
+The missions are worked in order, one at a time:
 
-| Objective | Desk |
-| --- | --- |
-| Book a flight | Flights |
-| Book a stay | Stays |
-| Buy a stock | Markets |
-| Sell a stock | Markets |
+| # | Mission | Where |
+| --- | --- | --- |
+| 1 | Assemble a drawer | Away from the screen |
+| 2 | Book a flight | Flights |
+| 3 | Book a stay | Stays |
+| 4 | Buy a stock | Markets |
+| 5 | Sell a stock | Markets |
+
+**Mission one happens in the real world.** The app does nothing for it but keep time: a
+full-screen stopwatch runs while you build the drawer, and you press **I'm done** when you
+come back. Every mission after it is cleared inside the app.
+
+Clearing a mission takes over the screen with a handoff card — a tick, the mission name,
+the **time that mission took**, what it **cost or earned**, the **budget left** and the
+checklist with the next mission highlighted. Nothing advances until you press **Next
+mission**, so each step reads as finished before the following one starts. Bookings that
+clear a mission close their own confirmation screen and let the handoff card stand in its
+place.
+
+Every booking and every trade moves the budget: the wallet in the header tints and hangs
+the exact amount below it (−$561.00) for a couple of seconds after each movement, and the
+handoff card carries the same number.
 
 While a run is live a notch sits centred in the navigation bar — a dark island with
-concave shoulders, a lens dot, the elapsed clock and the objective counter — and each
-objective raises a toast as it clears. The lens lights green when the run closes. Below
-1200px, where the header can no longer hold everything on one line, the notch takes the
-top row on its own. When the last one clears the clock freezes and a result card reports the **time
-taken**, **total spent**, **total earned**, **final net worth** and **net result** — the
-numbers you would rank runs by.
+concave shoulders, a lens dot, the elapsed clock, the mission counter and the name of the
+mission it is waiting on. The lens lights green when the run closes. Below 1200px, where
+the header can no longer hold everything on one line, the notch takes the top row on its
+own.
+
+When the fifth mission clears the clock freezes and a **run summary** reports the total
+time, every mission with its own duration and its own effect on the budget, then the
+starting budget, **total spent**, **total earned**, **final net worth** and **net
+result** — the numbers you would rank runs by.
 
 Spending, earnings and time stop recording at completion, so continuing to use the app
 afterwards cannot change a recorded result. **Run it again** resets to a fresh slate and a
@@ -171,7 +190,7 @@ bitmap artwork for either set instead.
 src/
   i18n/        typed message catalogue (en is the source of truth), plurals, RTL, currency
   data/        seeded generators — airports, flights, 831 destinations, hotels, instruments
-  state/       reducer store, session/objectives, persistence, quote feed, portfolio maths
+  state/       reducer store, session/missions, persistence, quote feed, portfolio maths
   features/    flights/ · stays/ · markets/ · session/
   components/  icons, airline logos, modal, autocomplete, date picker, loaders
   lib/         PRNG helpers and locale-independent formatting
