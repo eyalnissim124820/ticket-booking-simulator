@@ -9,6 +9,7 @@ import {
   DrawerMission,
   MissionBrief,
   MissionHandoff,
+  ResetRun,
   RunSummary,
   SessionNotch,
   StartGate,
@@ -268,6 +269,7 @@ function Shell() {
 
           <div className="topbar-right">
             <LanguageToggle />
+            <ResetRun />
             <Wallet />
           </div>
         </header>

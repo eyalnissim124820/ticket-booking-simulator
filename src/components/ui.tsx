@@ -50,6 +50,7 @@ export function Modal({
   children,
   footer,
   size = 'default',
+  raised = false,
 }: {
   open: boolean
   title: ReactNode
@@ -58,6 +59,9 @@ export function Modal({
   children: ReactNode
   footer?: ReactNode
   size?: 'narrow' | 'default' | 'wide'
+  /** Lifts the modal above the full-screen session gates, which otherwise
+   *  paint over it. Only for dialogs a gate itself opens. */
+  raised?: boolean
 }) {
   const { t } = useI18n()
   useEffect(() => {
@@ -77,7 +81,10 @@ export function Modal({
   // when no ancestor establishes a containing block (a transform, filter or
   // containment anywhere above would re-anchor it mid-page).
   return createPortal(
-    <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div
+      className={cx('modal-backdrop', raised && 'raised')}
+      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
+    >
       <div className={cx('modal', size !== 'default' && size)} role="dialog" aria-modal="true">
         <header className="modal-head">
           <div className="grow">

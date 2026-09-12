@@ -11,6 +11,7 @@ import {
   IconClock,
   IconDrawer,
   IconPlane,
+  IconRestart,
   IconTarget,
 } from '../../components/icons'
 import { airportCity, getAirport } from '../../data/airports'
@@ -175,6 +176,70 @@ export function MissionBrief() {
   )
 }
 
+/** Leaves the run and puts the player back on the start screen. Always asks
+ *  first: a reset throws away the clock, the bookings, the trades and the
+ *  budget, and there is no undo. Rendered in the header during a run, and
+ *  again on the full-screen gates, which paint over the header. */
+export function ResetRun({ onGate = false }: { onGate?: boolean }) {
+  const { t } = useI18n()
+  const { state, dispatch, notify } = useStore()
+  const [confirming, setConfirming] = useState(false)
+  const { session } = state
+  const elapsed = useElapsed()
+
+  // Nothing to reset before a run starts — the start screen is already up.
+  if (session.status === 'idle') return null
+
+  return (
+    <>
+      <button className={cx('reset-run', onGate && 'on-gate')} onClick={() => setConfirming(true)}>
+        <IconRestart size={15} />
+        {t('session.reset')}
+      </button>
+
+      <Modal
+        open={confirming}
+        raised
+        size="narrow"
+        title={t('session.resetTitle')}
+        onClose={() => setConfirming(false)}
+        footer={
+          <>
+            <button className="btn grow" onClick={() => setConfirming(false)}>
+              {t('session.resetKeep')}
+            </button>
+            <button
+              className="btn btn-danger grow"
+              onClick={() => {
+                setConfirming(false)
+                dispatch({ type: 'reset' })
+                notify({
+                  tone: 'info',
+                  title: t('session.resetDone'),
+                  body: t('session.resetDoneBody'),
+                })
+              }}
+            >
+              {t('session.resetConfirm')}
+            </button>
+          </>
+        }
+      >
+        <p className="muted">{t('session.resetBody')}</p>
+        {session.status === 'running' && (
+          <p className="faint" style={{ fontSize: 12.5 }}>
+            {t('session.resetProgress', {
+              n: session.index + 1,
+              total: MISSION_KEYS.length,
+              time: formatElapsed(elapsed),
+            })}
+          </p>
+        )}
+      </Modal>
+    </>
+  )
+}
+
 /** Non-dismissible gate shown before a run begins. */
 export function StartGate({ languageToggle }: { languageToggle: ReactNode }) {
   const { t } = useI18n()
@@ -230,6 +295,7 @@ export function DrawerMission() {
   return createPortal(
     <div className="gate" role="dialog" aria-modal="true">
       <div className="gate-panel">
+        <ResetRun onGate />
         <span className="panel-title">
           {t('session.missionOf', { n: 1, total: MISSION_KEYS.length })}
         </span>
@@ -280,6 +346,7 @@ export function MissionHandoff() {
   return createPortal(
     <div className="gate" role="dialog" aria-modal="true">
       <div className="gate-panel">
+        <ResetRun onGate />
         <div className="mission-icon done"><IconCheck size={28} /></div>
         <span className="panel-title">{t('session.missionComplete')}</span>
         <h1 className="gate-title">{t(MISSION_META[result.key].label)}</h1>
