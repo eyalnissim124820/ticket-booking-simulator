@@ -461,4 +461,14 @@ export const he: Dict = {
   'session.scoreNote':
     'הזמן, ההוצאות וההכנסות ננעלים ברגע הסיום. אפשר להמשיך להשתמש באתר — זה לא ישנה את התוצאה.',
   'session.finished': 'הסתיים ב־{time}',
+
+  'session.reset': 'איפוס',
+  'session.resetTitle': 'לאפס את הסימולציה?',
+  'session.resetBody':
+    'הפעולה מוחקת את השעון, ההזמנות, העסקאות והתקציב, ומחזירה אתכם למסך הפתיחה.',
+  'session.resetProgress': 'אתם במשימה {n} מתוך {total}, אחרי {time}.',
+  'session.resetKeep': 'להמשיך לשחק',
+  'session.resetConfirm': 'איפוס הסימולציה',
+  'session.resetDone': 'הסימולציה אופסה',
+  'session.resetDoneBody': 'חזרתם למסך הפתיחה — לחצו התחלה כשתהיו מוכנים.',
 }

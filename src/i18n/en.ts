@@ -463,6 +463,16 @@ export const en = {
   'session.scoreNote':
     'Time, spending and earnings are frozen at completion. You can keep using the app — it will not change this result.',
   'session.finished': 'Finished in {time}',
+
+  'session.reset': 'Reset',
+  'session.resetTitle': 'Reset the simulation?',
+  'session.resetBody':
+    'This clears the clock, the bookings, the trades and the budget, and takes you back to the start screen.',
+  'session.resetProgress': 'You are on mission {n} of {total}, {time} in.',
+  'session.resetKeep': 'Keep playing',
+  'session.resetConfirm': 'Reset simulation',
+  'session.resetDone': 'Simulation reset',
+  'session.resetDoneBody': 'Back at the start screen — press start when you are ready.',
 } as const
 
 export type MessageKey = keyof typeof en
