@@ -139,9 +139,15 @@ top up or reset the session.
 
 ## Design
 
-Light, flat and editorial — warm paper (`#f6f1e7`), ink text, a deep-teal brand with an
-ochre accent, hairline rules instead of shadows, and a serif display face against a
-grotesque UI face.
+Light, flat and editorial — cool paper (`#f4f7fb`), navy ink, the brand blue with a
+map-pin orange accent, hairline rules instead of shadows, and a serif display face against
+a grotesque UI face.
+
+Every colour is pulled from the Eli Baba logo: the navy of the "Eli" wordmark (`#112852`)
+is the ink, the blue of "Baba" (`#0174d4`) is the brand, and the pin (`#fe5a1d`) is the
+accent. `--brand` is a mid-tone, so it carries white on a fill but is too light to be
+small text on paper — `--brand-text` (`#0b4e8c`) is the same hue taken down for links,
+pills and labels, while fills, borders and the large numerals keep the vivid blue.
 
 - **No gradients anywhere.** Colour is applied as flat fills, rules and tint blocks. The
   page texture is a tiled SVG dot, and the chart's area fill is a flat tint.
@@ -152,7 +158,7 @@ grotesque UI face.
   `IBM Plex Mono` for figures. All three degrade to system stacks if the CDN is unreachable.
 
 ### Loading animations
-A branded rotating star, pulsing skeleton cards matched to the real card shapes (flight
+A dot travelling the brand's route line, pulsing skeleton cards matched to the real card shapes (flight
 rows and stay tiles), an inline spinner in the results toolbar, staggered entrance on
 result lists, a page-level fade-up between tabs, an animated stroke-draw on the price
 chart, and flat colour flashes on ticking quotes. All of it collapses under
@@ -204,6 +210,10 @@ src/
   lib/         PRNG helpers and locale-independent formatting
   styles/      design tokens and layout
 ```
+
+`public/` carries the favicon set, the web manifest and `brand/eli-baba-mark.png` — the
+circular mark the header and start gate render. The approved masters it was exported from
+(the full lockup and the isolated icon) live in `docs/brand/` and are not shipped.
 
 Overlays are portalled to `<body>` and freeze the page behind them: `position: fixed` is
 only viewport-relative when no ancestor establishes a containing block, and a stray

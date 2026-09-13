@@ -1,0 +1,14 @@
+{
+  "name": "Eli-baba · Travel & Markets",
+  "short_name": "Eli-baba",
+  "description": "A bilingual flight booking, accommodation booking and stock trading simulator.",
+  "id": "/",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#f4f7fb",
+  "background_color": "#f4f7fb",
+  "icons": [
+    { "src": "/android-chrome-192x192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/android-chrome-512x512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

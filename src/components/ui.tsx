@@ -124,38 +124,58 @@ export function Stars({ count }: { count: number }) {
   )
 }
 
+/** Two rules meeting at the logo's map pin — the same motif as the brand mark,
+ *  reduced to something that can sit quietly at the foot of a page. */
 export function Ornament({ width = 120 }: { width?: number }) {
   return (
-    <svg className="ornament" width={width} height="10" viewBox="0 0 120 10" aria-hidden="true">
+    <svg className="ornament" width={width} height="12" viewBox="0 0 120 12" aria-hidden="true">
       <g stroke="currentColor" strokeWidth="1" fill="none">
-        <path d="M0 5h44M76 5h44" />
-        <rect x="55" y="0.9" width="8.2" height="8.2" />
-        <rect x="55" y="0.9" width="8.2" height="8.2" transform="rotate(45 59.1 5)" />
+        <path d="M0 6h48M72 6h48" />
       </g>
+      <path
+        className="ornament-pin"
+        d="M60 1.2c-2.1 0-3.8 1.7-3.8 3.8 0 2.7 3.8 6 3.8 6s3.8-3.3 3.8-6c0-2.1-1.7-3.8-3.8-3.8Z"
+        fill="currentColor"
+      />
+      <circle cx="60" cy="5" r="1.4" fill="var(--card)" />
     </svg>
   )
 }
 
+/** The approved circular brand mark. It is a raster export — no SVG source
+ *  exists — so it ships at 192px and is only ever scaled down, which keeps it
+ *  crisp on a 2x display at the sizes used here. Decorative: every placement
+ *  sits beside the brand name or a heading that already says "Eli-baba". */
 export function BrandMark({ size = 30 }: { size?: number }) {
   return (
-    <svg className="brand-mark" width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
-      <g stroke="currentColor" strokeWidth="1.5" fill="none">
-        <rect x="7.5" y="7.5" width="17" height="17" />
-        <rect x="7.5" y="7.5" width="17" height="17" transform="rotate(45 16 16)" />
-        <circle cx="16" cy="16" r="3.4" />
-      </g>
-    </svg>
+    <img
+      className="brand-mark"
+      src="/brand/eli-baba-mark.png"
+      width={size}
+      height={size}
+      alt=""
+      aria-hidden="true"
+      decoding="async"
+    />
   )
 }
 
 /* ----------------------------------------------------------------- loading */
+/** A dot travelling the brand's route line: the logo's orbit, spinning. */
 export function LoaderStar({ size = 30 }: { size?: number }) {
   return (
     <svg className="loader-star" width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
-      <g stroke="currentColor" strokeWidth="1.6" fill="none">
-        <rect x="8" y="8" width="16" height="16" />
-        <rect x="8" y="8" width="16" height="16" transform="rotate(45 16 16)" />
-      </g>
+      <circle
+        cx="16"
+        cy="16"
+        r="11"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeDasharray="42 27"
+      />
+      <circle cx="16" cy="5" r="2.6" fill="currentColor" />
     </svg>
   )
 }

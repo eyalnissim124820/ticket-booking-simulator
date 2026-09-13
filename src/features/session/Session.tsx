@@ -257,7 +257,15 @@ export function StartGate({ languageToggle }: { languageToggle: ReactNode }) {
     <div className="gate" role="dialog" aria-modal="true">
       <div className="gate-panel">
         <div className="gate-lang">{languageToggle}</div>
-        <BrandMark size={36} />
+        {/* The gate covers the header, so it carries the brand lockup itself —
+            otherwise the first screen of the run never names the product. */}
+        <div className="brand gate-brand">
+          <BrandMark size={52} />
+          <div>
+            <span className="brand-name">{t('app.name')}</span>
+            <span className="brand-sub">{t('app.tagline')}</span>
+          </div>
+        </div>
         <h1 className="gate-title">{t('session.gateTitle')}</h1>
 
         <MissionList activeIndex={null} />
