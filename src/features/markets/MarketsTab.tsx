@@ -26,15 +26,19 @@ import { cx } from '../../lib/format'
 import { useI18n } from '../../i18n'
 import type { MessageKey } from '../../i18n/en'
 
+/* Eight hues keyed off the brand blue and the pin orange. They double as text
+   on a light pill and as fills in the allocation bar, so each is dark enough to
+   read on paper and far enough from its neighbours to be told apart as a 8px
+   swatch. */
 const SECTOR_COLORS: Record<string, string> = {
-  Technology: '#14524a',
-  Consumer: '#a03a63',
-  Energy: '#bd8324',
-  Healthcare: '#1f6f86',
-  Financials: '#1d6b45',
-  Industrials: '#ad3f2c',
-  RealEstate: '#4a3b7a',
-  Defence: '#2b4a80',
+  Technology: '#0174d4',
+  Consumer: '#a3306b',
+  Energy: '#c2490b',
+  Healthcare: '#0f7f97',
+  Financials: '#0f7a56',
+  Industrials: '#8a5a1f',
+  RealEstate: '#5a4796',
+  Defence: '#112852',
 }
 
 /** Adds a brief flash class whenever the value moves. */
