@@ -5,6 +5,8 @@ export const en = {
   'app.tagline': 'Travel & Markets',
   'app.disclaimer': 'A simulator. Nothing here is booked, charged or traded for real.',
 
+  'splash.skip': 'Skip',
+
   'nav.flights': 'Flights',
   'nav.stays': 'Stays',
   'nav.markets': 'Markets',

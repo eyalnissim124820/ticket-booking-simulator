@@ -7,6 +7,8 @@ export const he: Dict = {
   'app.tagline': 'טיסות, לינה ושווקים',
   'app.disclaimer': 'סימולטור. שום דבר כאן לא באמת מוזמן, מחויב או נסחר.',
 
+  'splash.skip': 'דילוג',
+
   'nav.flights': 'טיסות',
   'nav.stays': 'לינה',
   'nav.markets': 'שווקים',
