@@ -660,6 +660,127 @@ input[type='range'] { width: 100%; accent-color: var(--brand); cursor: pointer; 
   color: #b3c4dd; border-inline-start: 1px solid #2c4571; padding-inline-start: 14px;
 }
 
+/* ------------------------------------------------------------------ splash */
+/* The welcome reveal, played once on a cold open and then wiped away to hand
+   over to the start gate. Flat like the rest of the app — the depth comes from
+   timing and overshoot, never from a gradient or a glow. */
+.splash {
+  position: fixed; inset: 0; z-index: 500;
+  display: grid; place-items: center; padding: 32px 24px;
+  background: var(--ink);
+  /* The paper's dot texture, inverted for a dark ground. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22'%3E%3Ccircle cx='1' cy='1' r='1' fill='%23ffffff' fill-opacity='0.09'/%3E%3C/svg%3E");
+  cursor: pointer;
+}
+/* The hand-off: the stage clears first, then the whole navy panel lifts off the
+   top of the screen, uncovering the gate that was behind it all along. */
+.splash.out { animation: splashLift 620ms cubic-bezier(0.65, 0, 0.35, 1) forwards; }
+@keyframes splashLift { 0%, 30% { transform: translateY(0); } 100% { transform: translateY(-101%); } }
+.splash.out .splash-stage { animation: splashStageOut 320ms ease-in forwards; }
+@keyframes splashStageOut { to { opacity: 0; transform: translateY(-14px) scale(0.97); } }
+
+.splash-stage { display: grid; justify-items: center; text-align: center; }
+
+/* --- the mark, and the route line drawing itself around it --- */
+.splash-mark { position: relative; width: 260px; height: 260px; display: grid; place-items: center; }
+.splash-mark img {
+  width: 148px; height: 148px; border-radius: 50%; display: block;
+  animation: splashMark 620ms cubic-bezier(0.2, 1.35, 0.4, 1) 80ms backwards;
+}
+@keyframes splashMark { from { opacity: 0; transform: scale(0.62); } }
+
+.splash-orbit { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.splash-ring {
+  fill: none; stroke: #2797eb; stroke-width: 2; stroke-linecap: round;
+  /* 2πr at r=112, so one dash covers the whole ring and the offset draws it. */
+  stroke-dasharray: 704; stroke-dashoffset: 0;
+  transform: rotate(-90deg); transform-origin: 130px 130px;
+  animation: splashDraw 1000ms cubic-bezier(0.4, 0, 0.2, 1) 380ms backwards;
+}
+@keyframes splashDraw { from { stroke-dashoffset: 704; } }
+
+.splash-pulse {
+  fill: none; stroke: #2797eb; stroke-width: 2; opacity: 0;
+  transform-origin: 130px 130px;
+  animation: splashPulse 900ms ease-out 620ms;
+}
+@keyframes splashPulse {
+  from { opacity: 0.5; transform: scale(0.62); }
+  to { opacity: 0; transform: scale(1.16); }
+}
+
+/* The plane rides the ring from off the top round to the pin's corner, then
+   hands over to the pin as it drops. */
+.splash-flight {
+  transform-origin: 130px 130px;
+  animation: splashFly 1560ms cubic-bezier(0.3, 0, 0.25, 1) 540ms backwards;
+}
+@keyframes splashFly { from { transform: rotate(-95deg); } to { transform: rotate(135deg); } }
+.splash-plane {
+  fill: #ffffff; transform-box: fill-box; transform-origin: 50% 50%;
+  animation: splashPlaneOut 280ms ease-in 1800ms forwards;
+}
+@keyframes splashPlaneOut { to { opacity: 0; transform: scale(0.4); } }
+
+.splash-pin {
+  fill: var(--accent); transform-box: fill-box; transform-origin: 50% 100%;
+  animation: splashPin 640ms cubic-bezier(0.2, 1.5, 0.4, 1) 1740ms backwards;
+}
+@keyframes splashPin { from { opacity: 0; transform: translateY(-26px) scale(0.6); } }
+.splash-pin-dot { fill: var(--ink); }
+
+/* --- the wordmark, rising into place behind its own clip --- */
+.splash-word {
+  display: flex; margin-block-start: 20px;
+  font-family: var(--display); font-weight: 900; letter-spacing: -0.02em;
+  font-size: clamp(38px, 8vw, 64px); color: #ffffff;
+  /* The clip below is this line box, so it has to clear the font's descenders
+     outright — anything tighter shears them off rather than masking them. */
+  line-height: 1.2;
+}
+/* Each half is clipped to its own line box and slides up out of it. */
+.splash-word-clip { display: block; overflow: hidden; }
+.splash-word-clip > span {
+  display: block;
+  animation: splashRise 780ms cubic-bezier(0.16, 1, 0.3, 1) var(--d, 0ms) backwards;
+}
+@keyframes splashRise { from { transform: translateY(110%); } }
+/* The second half carries the logo's own blue, as it does in the lockup. */
+.splash-word-b { color: #2797eb; }
+
+.splash-rule {
+  display: block; width: 118px; height: 1px; background: rgba(255, 255, 255, 0.32);
+  margin-block-start: 22px;
+  animation: splashRule 700ms cubic-bezier(0.16, 1, 0.3, 1) 1180ms backwards;
+}
+@keyframes splashRule { from { transform: scaleX(0); opacity: 0; } }
+
+.splash-tagline {
+  margin-block-start: 16px;
+  font-size: 13px; font-weight: 600; letter-spacing: 0.24em; text-transform: uppercase;
+  color: #a9bde0;
+  animation: splashFadeUp 700ms cubic-bezier(0.16, 1, 0.3, 1) 1300ms backwards;
+}
+:root[lang='he'] .splash-tagline { letter-spacing: 0.08em; }
+@keyframes splashFadeUp { from { opacity: 0; transform: translateY(10px); } }
+
+.splash-skip {
+  position: absolute; inset-block-end: 28px; inset-inline-end: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.28); background: transparent; color: #cdd9ee;
+  padding: 7px 14px; border-radius: var(--radius); cursor: pointer;
+  font-weight: 600; font-size: 13px; transition: border-color var(--tap), color var(--tap);
+  animation: splashFadeUp 500ms ease-out 1500ms backwards;
+}
+.splash-skip:hover { border-color: #ffffff; color: #ffffff; }
+.splash-skip:focus-visible { outline-color: #ffffff; }
+.splash.out .splash-skip { opacity: 0; transition: opacity 180ms ease-in; }
+
+@media (max-width: 520px) {
+  .splash-mark { width: 210px; height: 210px; }
+  .splash-mark img { width: 118px; height: 118px; }
+  .splash-skip { inset-block-end: 20px; inset-inline-end: 20px; }
+}
+
 .gate {
   position: fixed; inset: 0; z-index: 300; overflow-y: auto;
   background: var(--paper);

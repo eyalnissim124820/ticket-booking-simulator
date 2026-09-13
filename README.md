@@ -157,6 +157,15 @@ pills and labels, while fills, borders and the large numerals keep the vivid blu
   *and* Latin, so the two languages share one voice instead of clashing — with
   `IBM Plex Mono` for figures. All three degrade to system stacks if the CDN is unreachable.
 
+### Welcome reveal
+A cold open plays an intro before the start gate (`src/features/session/Splash.tsx`): the
+mark lands with an overshoot, the route line draws itself around it, a plane rides the ring
+round to where the pin drops, the wordmark rises out of its own clip in the logo's two
+tones, and the navy panel lifts away to uncover the gate. It runs once per page load — a
+reset returns to the gate without replaying it — and any key, a click or the skip button
+ends it early. It does not play at all under `prefers-reduced-motion`, or on a reload that
+lands mid-run.
+
 ### Loading animations
 A dot travelling the brand's route line, pulsing skeleton cards matched to the real card shapes (flight
 rows and stay tiles), an inline spinner in the results toolbar, staggered entrance on
