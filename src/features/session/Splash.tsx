@@ -6,8 +6,9 @@ import { useStore } from '../../state/store'
 
 /** How long the reveal holds before it starts clearing, and how long the clear
  *  itself takes. Both are mirrored in the CSS below — the JS owns the schedule,
- *  the CSS owns the motion. */
-const HOLD_MS = 2350
+ *  the CSS owns the motion. The hold covers two full cycles of the ring, so it
+ *  has to outlast the plane's second lap and the pin landing after it. */
+const HOLD_MS = 4700
 const EXIT_MS = 620
 
 /** The intro plays once per page load, never twice: a reset drops the player
@@ -117,7 +118,7 @@ export function Splash() {
             <span
               key={i}
               className="splash-word-clip"
-              style={{ '--d': `${700 + i * 110}ms` } as CSSProperties}
+              style={{ '--d': `${1420 + i * 120}ms` } as CSSProperties}
             >
               <span className={i === 1 ? 'splash-word-b' : undefined}>{part}</span>
             </span>
