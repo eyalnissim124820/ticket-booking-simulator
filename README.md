@@ -210,16 +210,6 @@ the loading state, a photograph fades over it once decoded, and each failure mov
 next source — the illustration simply stays if none succeed. Card and gallery dimensions
 are identical either way.
 
-Photographs are fetched as early as there is anything to fetch. Left alone a listing photo
-waits on two things stacked in front of the download — the card rendering behind its
-skeleton, then the card scrolling into view — so `prefetchStayPhotos` warms the browser
-cache for every listing in the destination the moment the results exist, spending the
-750ms skeleton window on the network instead of idling through it. The popular tiles are
-warmed when the tab mounts, the first row of cards is marked eager rather than lazy, and
-both photo hosts are `preconnect`ed from `index.html` so the first image does not pay for
-a DNS lookup and TLS handshake. Warming every listing rather than only the filtered ones
-means changing a filter costs nothing.
-
 ### Generated artwork
 Both fallback sets are inline SVG — nothing is fetched:
 

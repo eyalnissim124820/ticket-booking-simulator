@@ -30,7 +30,6 @@ import { AMENITY_ICONS, IconBed, IconHeart, IconSearch } from '../../components/
 import { PropertyDetail } from './PropertyDetail'
 import { StayBookingFlow } from './StayBookingFlow'
 import { StayImage } from './StayImage'
-import { prefetchStayPhotos } from '../../data/stayPhotos'
 import { addDays, cx, nightsBetween, todayIso } from '../../lib/format'
 import { useI18n } from '../../i18n'
 
@@ -49,7 +48,6 @@ function PropertyCard({
   nights,
   rooms,
   saved,
-  eager = false,
   onOpen,
   onToggleSave,
 }: {
@@ -57,9 +55,6 @@ function PropertyCard({
   nights: number
   rooms: number
   saved: boolean
-  /** Set on the first row, which is above the fold and should not wait to be
-   *  scrolled into view before it is allowed to load. */
-  eager?: boolean
   onOpen: () => void
   onToggleSave: () => void
 }) {
@@ -70,7 +65,7 @@ function PropertyCard({
   return (
     <article className="card stay-card" onClick={onOpen}>
       <div className="stay-photo">
-        <StayImage seed={property.artSeed} width={640} eager={eager} alt={pairText(property.name, locale)} />
+        <StayImage seed={property.artSeed} width={640} alt={pairText(property.name, locale)} />
         <button
           className="save"
           aria-label={saved ? t('stays.unsavedToast') : t('common.save')}
@@ -165,20 +160,6 @@ export function StaysTab() {
 
   const all = useMemo(() => (submitted ? cachedPropertiesFor(submitted.destinationId) : []), [submitted])
   const priceCeiling = useMemo(() => (all.length ? Math.max(...all.map((p) => p.nightlyRate)) : 0), [all])
-
-  // The popular tiles are the first photographs anyone sees on this tab, and
-  // they are on screen before any search happens.
-  useEffect(() => {
-    prefetchStayPhotos(searchDestinations('').map((d) => d.city.length * 977 + d.basePrice))
-  }, [])
-
-  // The results are held behind skeletons for three quarters of a second. Spend
-  // that window fetching the photographs instead of idling through it, and warm
-  // every listing for the destination rather than only the ones that pass the
-  // current filters — changing a filter then costs nothing.
-  useEffect(() => {
-    if (all.length) prefetchStayPhotos(all.map((p) => p.artSeed))
-  }, [all])
 
   const visible = useMemo(() => {
     const filtered = all.filter((p) => {
@@ -449,11 +430,10 @@ export function StaysTab() {
               </div>
             ) : (
               <div className="stay-grid stagger">
-                {visible.map((property, i) => (
+                {visible.map((property) => (
                   <PropertyCard
                     key={property.id}
                     property={property}
-                    eager={i < 4}
                     nights={submittedNights}
                     rooms={submitted.rooms}
                     saved={state.savedProperties.includes(property.id)}
