@@ -15,6 +15,12 @@
     />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Listing photography comes from these two. Opening the connections up
+         front takes the DNS lookup and TLS handshake off the critical path of
+         the first photo, which is otherwise most of the wait. -->
+    <link rel="preconnect" href="https://loremflickr.com" crossorigin />
+    <link rel="preconnect" href="https://picsum.photos" crossorigin />
+    <link rel="dns-prefetch" href="https://fastly.picsum.photos" />
     <!-- Frank Ruhl Libre and Assistant both carry Hebrew and Latin, so the two
          languages share one typographic voice instead of clashing. -->
     <link

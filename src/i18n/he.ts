@@ -9,6 +9,11 @@ export const he: Dict = {
 
   'splash.skip': 'דילוג',
 
+  'ad.label': 'פרסומת',
+  'ad.close': 'סגירה',
+  'ad.closeIn': 'סגירה בעוד {n}',
+  'ad.disclaimer': 'הפסקת פרסומת מדומה. שום דבר כאן אינו הצעה אמיתית, ושום דבר לא נפתח.',
+
   'nav.flights': 'טיסות',
   'nav.stays': 'לינה',
   'nav.markets': 'שווקים',

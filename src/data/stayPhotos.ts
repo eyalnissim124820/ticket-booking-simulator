@@ -31,6 +31,34 @@ const seeded = (width: number, height: number, lock: number) =>
 const unsplash = (id: string, width: number, height: number) =>
   `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&crop=entropy&w=${width}&h=${height}&q=75`
 
+/** URLs already handed to the browser, so a re-render cannot ask for the same
+ *  photograph twice. The HTTP cache would collapse the duplicates anyway; this
+ *  saves making the requests at all. */
+const warmed = new Set<string>()
+
+/**
+ * Starts the browser fetching listing photographs before anything renders them.
+ *
+ * Cards mount behind a skeleton and their images are lazy, so left alone a
+ * photo is only requested once its card has both rendered and scrolled into
+ * view — two waits stacked on top of the download itself. Warming the cache as
+ * soon as the results exist collapses that to just the download, and by the
+ * time the grid appears most of them are already in hand.
+ *
+ * Only the first candidate per listing: the fallbacks matter only if it fails,
+ * and `StayImage` asks for them itself at that point.
+ */
+export function prefetchStayPhotos(seeds: number[], variant = 0, width = 640) {
+  for (const seed of seeds) {
+    const [first] = stayPhotoSources(seed, variant, width)
+    if (!first || warmed.has(first)) continue
+    warmed.add(first)
+    const img = new Image()
+    img.decoding = 'async'
+    img.src = first
+  }
+}
+
 /** Candidate URLs for one listing image, best first. */
 export function stayPhotoSources(seed: number, variant = 0, width = 800): string[] {
   const height = Math.round((width * 3) / 5)

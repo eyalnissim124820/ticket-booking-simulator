@@ -7,6 +7,11 @@ export const en = {
 
   'splash.skip': 'Skip',
 
+  'ad.label': 'Advertisement',
+  'ad.close': 'Close',
+  'ad.closeIn': 'Close in {n}',
+  'ad.disclaimer': 'A simulated ad break. Nothing here is a real offer, and nothing opens.',
+
   'nav.flights': 'Flights',
   'nav.stays': 'Stays',
   'nav.markets': 'Markets',

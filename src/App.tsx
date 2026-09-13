@@ -15,6 +15,7 @@ import {
   StartGate,
 } from './features/session/Session'
 import { Splash } from './features/session/Splash'
+import { AdBreak } from './features/session/AdBreak'
 import {
   IconAlert,
   IconBed,
@@ -294,6 +295,7 @@ function Shell() {
       <MissionHandoff />
       <DrawerMission />
       <StartGate languageToggle={<LanguageToggle />} />
+      <AdBreak />
       {/* Last, so it paints over the gate it hands over to. */}
       <Splash />
     </div>

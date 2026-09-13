@@ -161,10 +161,26 @@ pills and labels, while fills, borders and the large numerals keep the vivid blu
 A cold open plays an intro before the start gate (`src/features/session/Splash.tsx`): the
 mark lands with an overshoot, the route line draws itself around it, a plane rides the ring
 round to where the pin drops, the wordmark rises out of its own clip in the logo's two
-tones, and the navy panel lifts away to uncover the gate. It runs once per page load — a
-reset returns to the gate without replaying it — and any key, a click or the skip button
-ends it early. It does not play at all under `prefers-reduced-motion`, or on a reload that
-lands mid-run.
+tones, and the navy panel lifts away to uncover the gate. The ring runs two full cycles
+before it settles and the plane flies two laps behind it, which is what sets the roughly
+five-second length; `HOLD_MS` and the CSS delays are kept in step with each other. It runs
+once per page load — a reset returns to the gate without replaying it — and any key, a
+click or the skip button ends it early. It does not play at all under
+`prefers-reduced-motion`, or on a reload that lands mid-run.
+
+### Ad breaks
+A run is interrupted a few times by a full-screen ad (`src/features/session/AdBreak.tsx`,
+creative in `src/data/ads.ts`), the way a free consumer site interrupts one. The first
+lands 25–45s into the second mission and the rest follow 50–80s apart, so no two runs are
+broken up alike. The close button counts down for four seconds and an ignored break gives
+up on its own after fifteen, so a timed run can never be held hostage.
+
+Breaks never open over mission one, which happens behind its own gate, nor over a handoff
+or a finished run — and a break that is showing when one of those starts is closed and
+rescheduled rather than left hanging. The creative is not translated: an advertiser's name
+and copy arrive in the language they were written in, so it renders as an explicit
+`dir="rtl"` island whichever way the app around it is running. Only the chrome around it —
+the label, the close button, the disclaimer — goes through the message catalogue.
 
 ### Loading animations
 A dot travelling the brand's route line, pulsing skeleton cards matched to the real card shapes (flight
@@ -193,6 +209,16 @@ Every image degrades rather than breaking: the seeded illustration renders under
 the loading state, a photograph fades over it once decoded, and each failure moves to the
 next source — the illustration simply stays if none succeed. Card and gallery dimensions
 are identical either way.
+
+Photographs are fetched as early as there is anything to fetch. Left alone a listing photo
+waits on two things stacked in front of the download — the card rendering behind its
+skeleton, then the card scrolling into view — so `prefetchStayPhotos` warms the browser
+cache for every listing in the destination the moment the results exist, spending the
+750ms skeleton window on the network instead of idling through it. The popular tiles are
+warmed when the tab mounts, the first row of cards is marked eager rather than lazy, and
+both photo hosts are `preconnect`ed from `index.html` so the first image does not pay for
+a DNS lookup and TLS handshake. Warming every listing rather than only the filtered ones
+means changing a filter costs nothing.
 
 ### Generated artwork
 Both fallback sets are inline SVG — nothing is fetched:
